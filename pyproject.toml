@@ -1,0 +1,77 @@
+[project]
+name = "flare"
+version = "0.1.0"
+description = "Flare — AI security alert triage backend (FastAPI + LangGraph)"
+readme = "README.md"
+requires-python = ">=3.11"
+dependencies = [
+    "fastapi",
+    "uvicorn[standard]",
+    "pydantic>=2",
+    "pydantic-settings",
+    "python-dotenv",
+    "langgraph",
+    "langchain-core",
+    "groq",
+    "google-generativeai",
+    "chromadb",
+    "sentence-transformers",
+    "httpx",
+    "tenacity",
+    "aiolimiter",
+    "sqlalchemy[asyncio]",
+    "aiosqlite",
+    "alembic",
+    "sse-starlette",
+    "structlog",
+    "orjson",
+    "pandas",
+    "pyarrow",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest",
+    "pytest-asyncio",
+    "pytest-cov",
+    "respx",
+    "ruff",
+    "mypy",
+    "ipython",
+]
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["app"]
+
+[tool.ruff]
+line-length = 100
+target-version = "py311"
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "W", "UP", "B"]
+# Contract mandates `str, Enum` (not StrEnum) with use_enum_values=False.
+ignore = ["UP042"]
+
+[tool.ruff.lint.per-file-ignores]
+"alembic/versions/*" = ["E501", "W291"]
+
+[tool.mypy]
+# 3.12 so third-party stubs using `type` statements (e.g. numpy) parse cleanly;
+# runtime interpreter is 3.11+.
+python_version = "3.12"
+exclude = ["^\\.venv/"]
+strict_optional = true
+ignore_missing_imports = true
+warn_unused_ignores = true
+
+[tool.pytest.ini_options]
+asyncio_mode = "auto"
+testpaths = ["tests"]
+addopts = "-ra"
+markers = [
+    "slow: integration tests that use the real embedding model / Chroma",
+]

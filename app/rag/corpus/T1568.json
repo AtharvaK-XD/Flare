@@ -1,0 +1,23 @@
+{
+  "id": "T1568",
+  "name": "Dynamic Resolution",
+  "tactics": [
+    "Command and Control"
+  ],
+  "description": "Adversaries may dynamically establish connections to command and control infrastructure to evade common detections and remediation. This includes domain generation algorithms, DNS calculation, and fast flux DNS, which frequently change the domains or IP addresses used for C2.",
+  "detection": "Monitor DNS traffic for a high rate of NXDOMAIN responses, algorithmically-generated domain names, and rapidly changing IP resolutions for a single domain. DNS analytics that baseline normal resolution behavior are effective.",
+  "mitigations": [
+    "M1031: Network Intrusion Prevention",
+    "M1021: Restrict Web-Based Content \u2014 DNS filtering"
+  ],
+  "platforms": [
+    "Windows",
+    "Linux",
+    "macOS"
+  ],
+  "data_sources": [
+    "Network Traffic: Network Traffic Content",
+    "Network Traffic: Network Connection Creation"
+  ],
+  "url": "https://attack.mitre.org/techniques/T1568/"
+}

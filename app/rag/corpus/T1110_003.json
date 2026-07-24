@@ -1,0 +1,30 @@
+{
+  "id": "T1110.003",
+  "name": "Brute Force: Password Spraying",
+  "tactics": [
+    "Credential Access"
+  ],
+  "description": "Adversaries may use a single or small list of commonly used passwords against many different accounts to attempt to acquire valid credentials. Password spraying uses one password (or a small set) against many usernames to avoid account lockouts that would occur when guessing many passwords against one account.",
+  "detection": "Monitor authentication logs for a single source attempting one password across many accounts within a short time window. A low per-account failure count spread across many accounts is the tell-tale signature.",
+  "mitigations": [
+    "M1032: Multi-factor Authentication",
+    "M1027: Password Policies",
+    "M1036: Account Use Policies"
+  ],
+  "platforms": [
+    "Windows",
+    "Linux",
+    "macOS",
+    "Network",
+    "Containers",
+    "SaaS",
+    "IaaS",
+    "Office 365",
+    "Azure AD"
+  ],
+  "data_sources": [
+    "User Account: User Account Authentication",
+    "Application Log: Application Log Content"
+  ],
+  "url": "https://attack.mitre.org/techniques/T1110/003/"
+}

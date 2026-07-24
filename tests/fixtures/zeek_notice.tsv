@@ -1,0 +1,5 @@
+#separator \x09
+#set_separator	,
+#path	notice
+#fields	ts	note	id.orig_h	id.orig_p	id.resp_h	id.resp_p	proto
+1546400000.0	Scan::Port_Scan	8.8.4.4	1234	10.0.0.1	80	tcp

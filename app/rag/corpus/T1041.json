@@ -1,0 +1,23 @@
+{
+  "id": "T1041",
+  "name": "Exfiltration Over C2 Channel",
+  "tactics": [
+    "Exfiltration"
+  ],
+  "description": "Adversaries may steal data by exfiltrating it over an existing command and control channel. Stolen data is encoded into the normal communications channel using the same protocol as C2 communications, avoiding the need to open a second suspicious connection.",
+  "detection": "Monitor for unusual outbound data volume, particularly a client uploading significantly more data than it downloads on a C2 channel. Correlate large asymmetric transfers with known or suspected C2 destinations.",
+  "mitigations": [
+    "M1031: Network Intrusion Prevention",
+    "M1057: Data Loss Prevention"
+  ],
+  "platforms": [
+    "Windows",
+    "Linux",
+    "macOS"
+  ],
+  "data_sources": [
+    "Network Traffic: Network Traffic Flow",
+    "Network Traffic: Network Traffic Content"
+  ],
+  "url": "https://attack.mitre.org/techniques/T1041/"
+}

@@ -1,0 +1,25 @@
+{
+  "id": "T1068",
+  "name": "Exploitation for Privilege Escalation",
+  "tactics": [
+    "Privilege Escalation"
+  ],
+  "description": "Adversaries may exploit software vulnerabilities in an attempt to elevate privileges. Exploitation of a vulnerability in a kernel, driver, or privileged service can allow an adversary to execute code with higher permissions than currently held.",
+  "detection": "Monitor for exploitation behavior such as unexpected process crashes, abnormal child processes spawned by privileged services, and known exploit indicators. Endpoint detection focused on memory corruption and privilege transitions is effective.",
+  "mitigations": [
+    "M1051: Update Software \u2014 patch privileged components",
+    "M1050: Exploit Protection",
+    "M1048: Application Isolation and Sandboxing"
+  ],
+  "platforms": [
+    "Windows",
+    "Linux",
+    "macOS",
+    "Containers"
+  ],
+  "data_sources": [
+    "Process: Process Creation",
+    "Driver: Driver Load"
+  ],
+  "url": "https://attack.mitre.org/techniques/T1068/"
+}

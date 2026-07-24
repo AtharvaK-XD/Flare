@@ -1,0 +1,24 @@
+{
+  "id": "T1573",
+  "name": "Encrypted Channel",
+  "tactics": [
+    "Command and Control"
+  ],
+  "description": "Adversaries may employ a known encryption algorithm to conceal command and control traffic rather than relying on any inherent protections provided by a communication protocol. Encryption, whether symmetric or asymmetric, hides the content of C2 from network inspection.",
+  "detection": "With symmetric or asymmetric encryption, content inspection is limited; instead analyze traffic metadata and TLS handshake characteristics such as JA3 fingerprints, self-signed certificates, and rare cipher suites. Beaconing patterns remain visible even when payloads are encrypted.",
+  "mitigations": [
+    "M1031: Network Intrusion Prevention",
+    "M1020: SSL/TLS Inspection"
+  ],
+  "platforms": [
+    "Windows",
+    "Linux",
+    "macOS",
+    "Network"
+  ],
+  "data_sources": [
+    "Network Traffic: Network Traffic Content",
+    "Network Traffic: Network Traffic Flow"
+  ],
+  "url": "https://attack.mitre.org/techniques/T1573/"
+}

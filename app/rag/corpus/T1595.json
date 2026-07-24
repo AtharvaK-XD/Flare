@@ -1,0 +1,20 @@
+{
+  "id": "T1595",
+  "name": "Active Scanning",
+  "tactics": [
+    "Reconnaissance"
+  ],
+  "description": "Adversaries may execute active reconnaissance scans to gather information that can be used during targeting. Active scans probe victim infrastructure via network traffic, as opposed to passive collection. This includes scanning IP blocks, host discovery, and vulnerability scanning to find weaknesses to exploit.",
+  "detection": "Monitor for suspicious network traffic that could indicate scanning, such as large quantities of requests originating from a single source, especially sources known to be associated with adversaries. Web application firewalls and server logs may reveal probing patterns and elevated error rates.",
+  "mitigations": [
+    "M1056: Pre-compromise \u2014 this technique is difficult to mitigate with preventive controls as it is based on behaviors performed outside the enterprise"
+  ],
+  "platforms": [
+    "PRE"
+  ],
+  "data_sources": [
+    "Network Traffic: Network Traffic Flow",
+    "Network Traffic: Network Traffic Content"
+  ],
+  "url": "https://attack.mitre.org/techniques/T1595/"
+}

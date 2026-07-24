@@ -1,0 +1,25 @@
+{
+  "id": "T1105",
+  "name": "Ingress Tool Transfer",
+  "tactics": [
+    "Command and Control"
+  ],
+  "description": "Adversaries may transfer tools or other files from an external system into a compromised environment. Files may be copied over the command and control channel or through alternative protocols such as FTP, and tools like curl, wget, and certutil are commonly abused to pull payloads.",
+  "detection": "Monitor for file creation and transfer from external, suspicious, or newly-registered hosts, and for execution of download utilities. Network intrusion detection can flag downloads of known-malicious files.",
+  "mitigations": [
+    "M1031: Network Intrusion Prevention",
+    "M1037: Filter Network Traffic"
+  ],
+  "platforms": [
+    "Windows",
+    "Linux",
+    "macOS",
+    "Network"
+  ],
+  "data_sources": [
+    "File: File Creation",
+    "Network Traffic: Network Traffic Content",
+    "Command: Command Execution"
+  ],
+  "url": "https://attack.mitre.org/techniques/T1105/"
+}

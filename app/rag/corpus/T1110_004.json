@@ -1,0 +1,29 @@
+{
+  "id": "T1110.004",
+  "name": "Brute Force: Credential Stuffing",
+  "tactics": [
+    "Credential Access"
+  ],
+  "description": "Adversaries may use credentials obtained from breach dumps of unrelated accounts to gain access to target accounts through credential overlap. This works because users often reuse the same username and password across multiple services, so leaked credentials from one breach unlock accounts elsewhere.",
+  "detection": "Monitor for authentication attempts using known-breached credential pairs, and for bursts of logins from distributed sources against many accounts. Elevated success rates from unusual geolocations can indicate stuffing.",
+  "mitigations": [
+    "M1032: Multi-factor Authentication",
+    "M1027: Password Policies \u2014 block reused/breached passwords"
+  ],
+  "platforms": [
+    "Windows",
+    "Linux",
+    "macOS",
+    "Network",
+    "Containers",
+    "SaaS",
+    "IaaS",
+    "Office 365",
+    "Azure AD"
+  ],
+  "data_sources": [
+    "User Account: User Account Authentication",
+    "Application Log: Application Log Content"
+  ],
+  "url": "https://attack.mitre.org/techniques/T1110/004/"
+}

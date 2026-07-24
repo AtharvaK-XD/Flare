@@ -1,0 +1,25 @@
+{
+  "id": "T1048",
+  "name": "Exfiltration Over Alternative Protocol",
+  "tactics": [
+    "Exfiltration"
+  ],
+  "description": "Adversaries may steal data by exfiltrating it over a different protocol than that of the existing command and control channel. Data may be sent over DNS, FTP, SMTP, or other protocols distinct from the main C2, sometimes to a separate destination, to evade controls focused on the C2 path.",
+  "detection": "Monitor for unexpected protocol usage and volume anomalies, such as large DNS TXT queries or outbound FTP/SMTP from hosts that do not normally use them. Analyze egress for protocols leaving the environment to unusual destinations.",
+  "mitigations": [
+    "M1037: Filter Network Traffic",
+    "M1057: Data Loss Prevention",
+    "M1031: Network Intrusion Prevention"
+  ],
+  "platforms": [
+    "Windows",
+    "Linux",
+    "macOS",
+    "Network"
+  ],
+  "data_sources": [
+    "Network Traffic: Network Traffic Flow",
+    "Network Traffic: Network Connection Creation"
+  ],
+  "url": "https://attack.mitre.org/techniques/T1048/"
+}

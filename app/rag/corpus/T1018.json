@@ -1,0 +1,24 @@
+{
+  "id": "T1018",
+  "name": "Remote System Discovery",
+  "tactics": [
+    "Discovery"
+  ],
+  "description": "Adversaries may attempt to get a listing of other systems by IP address, hostname, or other logical identifier on a network that may be used for lateral movement. Functionality could exist within remote access tools or built-in utilities like ping, net view, arp, and nltest to enable this.",
+  "detection": "Monitor for process and command-line execution of discovery utilities such as ping, net, arp, and nltest. Correlate host enumeration commands with subsequent connection attempts to newly discovered systems.",
+  "mitigations": [
+    "M1042: Disable or Remove Feature or Program \u2014 restrict discovery utilities where feasible"
+  ],
+  "platforms": [
+    "Windows",
+    "Linux",
+    "macOS",
+    "IaaS"
+  ],
+  "data_sources": [
+    "Command: Command Execution",
+    "Process: Process Creation",
+    "Network Traffic: Network Connection Creation"
+  ],
+  "url": "https://attack.mitre.org/techniques/T1018/"
+}
