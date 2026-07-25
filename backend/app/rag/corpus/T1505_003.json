@@ -1,0 +1,26 @@
+{
+  "id": "T1505.003",
+  "name": "Server Software Component: Web Shell",
+  "tactics": [
+    "Persistence"
+  ],
+  "description": "Adversaries may backdoor web servers with web shells to establish persistent access to systems. A web shell is a script placed on an accessible web server that lets an adversary use the server as a gateway, executing commands and providing an interactive interface into the host.",
+  "detection": "Monitor web directories for the creation or modification of script files, and watch for the web server process spawning command shells or unusual child processes. File integrity monitoring on web roots is highly effective.",
+  "mitigations": [
+    "M1018: User Account Management \u2014 least privilege for the web server",
+    "M1042: Disable or Remove Feature or Program",
+    "M1051: Update Software"
+  ],
+  "platforms": [
+    "Windows",
+    "Linux",
+    "macOS",
+    "Network"
+  ],
+  "data_sources": [
+    "File: File Creation",
+    "Process: Process Creation",
+    "Network Traffic: Network Traffic Content"
+  ],
+  "url": "https://attack.mitre.org/techniques/T1505/003/"
+}

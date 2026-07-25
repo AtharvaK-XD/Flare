@@ -1,0 +1,1 @@
+{"timestamp": "2019-01-02T03:50:11.315110+0000", "event_type": "alert", "flow_id": 1234567, "src_ip": "45.13.2.99", "src_port": 51000, "dest_ip": "10.0.0.5", "dest_port": 22, "proto": "TCP", "alert": {"signature": "ET SCAN Potential SSH Scan", "category": "Attempted Recon", "severity": 2}}

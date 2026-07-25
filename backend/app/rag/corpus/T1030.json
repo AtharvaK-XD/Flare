@@ -1,0 +1,23 @@
+{
+  "id": "T1030",
+  "name": "Data Transfer Size Limits",
+  "tactics": [
+    "Exfiltration"
+  ],
+  "description": "Adversaries may exfiltrate data in fixed-size chunks instead of whole files, or limit packet sizes below certain thresholds, to avoid triggering network data transfer alerts. Splitting data into uniform blocks and sending them at intervals helps evade volume-based detection.",
+  "detection": "Monitor for repeated outbound transfers of a suspiciously uniform size, or periodic transfers on a fixed schedule. Network intrusion detection tuned for chunked, regular egress can surface this behavior.",
+  "mitigations": [
+    "M1031: Network Intrusion Prevention",
+    "M1057: Data Loss Prevention"
+  ],
+  "platforms": [
+    "Windows",
+    "Linux",
+    "macOS"
+  ],
+  "data_sources": [
+    "Network Traffic: Network Traffic Flow",
+    "Network Traffic: Network Traffic Content"
+  ],
+  "url": "https://attack.mitre.org/techniques/T1030/"
+}

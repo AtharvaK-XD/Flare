@@ -1,0 +1,30 @@
+{
+  "id": "T1110",
+  "name": "Brute Force",
+  "tactics": [
+    "Credential Access"
+  ],
+  "description": "Adversaries may use brute force techniques to gain access to accounts when passwords are unknown or when password hashes are obtained. Without knowledge of the password, an adversary may systematically guess the password using a repetitive or iterative mechanism, including password guessing, password spraying, credential stuffing, and password cracking.",
+  "detection": "Monitor authentication logs for a high volume of failed login attempts, especially many failures followed by a success, or failures spread across many accounts. Alert on repeated SSH, RDP, or web login failures from a single source or against a single account.",
+  "mitigations": [
+    "M1032: Multi-factor Authentication \u2014 require MFA to defeat guessed passwords",
+    "M1027: Password Policies \u2014 enforce strong, unique passwords",
+    "M1036: Account Use Policies \u2014 lock accounts after repeated failures"
+  ],
+  "platforms": [
+    "Windows",
+    "Linux",
+    "macOS",
+    "Azure AD",
+    "Office 365",
+    "SaaS",
+    "IaaS",
+    "Network",
+    "Containers"
+  ],
+  "data_sources": [
+    "User Account: User Account Authentication",
+    "Application Log: Application Log Content"
+  ],
+  "url": "https://attack.mitre.org/techniques/T1110/"
+}

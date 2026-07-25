@@ -1,0 +1,24 @@
+{
+  "id": "T1071.001",
+  "name": "Application Layer Protocol: Web Protocols",
+  "tactics": [
+    "Command and Control"
+  ],
+  "description": "Adversaries may communicate using application layer protocols associated with web traffic, such as HTTP and HTTPS, to avoid detection by blending in with existing traffic. Commands and results are embedded within request and response fields such as URIs, headers, and body content.",
+  "detection": "Analyze network traffic for HTTP/S flows with anomalous characteristics: beaconing intervals, unusual user agents, rare destinations, or large asymmetric transfers. Correlate with endpoint process activity generating the traffic.",
+  "mitigations": [
+    "M1031: Network Intrusion Prevention",
+    "M1037: Filter Network Traffic"
+  ],
+  "platforms": [
+    "Windows",
+    "Linux",
+    "macOS",
+    "Network"
+  ],
+  "data_sources": [
+    "Network Traffic: Network Traffic Content",
+    "Network Traffic: Network Traffic Flow"
+  ],
+  "url": "https://attack.mitre.org/techniques/T1071/001/"
+}

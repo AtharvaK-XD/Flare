@@ -1,0 +1,27 @@
+{
+  "id": "T1498",
+  "name": "Network Denial of Service",
+  "tactics": [
+    "Impact"
+  ],
+  "description": "Adversaries may perform Network Denial of Service attacks to degrade or block the availability of targeted resources by exhausting network bandwidth. This includes volumetric floods, often amplified and reflected through third-party servers, that saturate the link to the victim.",
+  "detection": "Detection is typically performed via network monitoring for abnormal traffic volume and flow. Sudden, sustained spikes in inbound traffic to a service, especially from many distributed sources, indicate a network DoS.",
+  "mitigations": [
+    "M1037: Filter Network Traffic \u2014 leverage upstream/ISP DDoS scrubbing",
+    "M1030: Network Segmentation"
+  ],
+  "platforms": [
+    "Windows",
+    "Linux",
+    "macOS",
+    "Network",
+    "Containers",
+    "IaaS",
+    "SaaS"
+  ],
+  "data_sources": [
+    "Network Traffic: Network Traffic Flow",
+    "Sensor Health: Host Status"
+  ],
+  "url": "https://attack.mitre.org/techniques/T1498/"
+}

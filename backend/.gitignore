@@ -1,0 +1,25 @@
+# Env
+.env
+.env.local
+
+# Data / caches
+data/chroma/
+data/datasets/
+*.db
+
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+.mypy_cache/
+.ruff_cache/
+.pytest_cache/
+*.egg-info/
+dist/
+build/
+
+# HF cache (if local)
+.hf_cache/
+
+flare-api-contract.md

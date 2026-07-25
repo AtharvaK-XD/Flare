@@ -1,0 +1,25 @@
+{
+  "id": "T1567",
+  "name": "Exfiltration Over Web Service",
+  "tactics": [
+    "Exfiltration"
+  ],
+  "description": "Adversaries may use an existing, legitimate external web service to exfiltrate data rather than their primary command and control channel. Popular cloud storage, code repositories, and paste sites are abused because their traffic blends in and is often allowed through firewalls.",
+  "detection": "Monitor for uploads to external web services, particularly large or unusual transfers to cloud storage or paste sites from hosts that do not normally use them. Proxy and DLP logs are key data sources.",
+  "mitigations": [
+    "M1057: Data Loss Prevention",
+    "M1021: Restrict Web-Based Content"
+  ],
+  "platforms": [
+    "Windows",
+    "Linux",
+    "macOS",
+    "Office 365",
+    "SaaS"
+  ],
+  "data_sources": [
+    "Network Traffic: Network Traffic Content",
+    "Network Traffic: Network Connection Creation"
+  ],
+  "url": "https://attack.mitre.org/techniques/T1567/"
+}

@@ -1,0 +1,24 @@
+{
+  "id": "T1071",
+  "name": "Application Layer Protocol",
+  "tactics": [
+    "Command and Control"
+  ],
+  "description": "Adversaries may communicate using OSI application layer protocols to avoid detection by blending with existing traffic. Commands to and results from a remote system are embedded within the protocol traffic, using protocols such as HTTP, HTTPS, DNS, and SMTP that are commonly allowed through firewalls.",
+  "detection": "Analyze network traffic for uncommon data flows, such as a client making significantly more requests than it receives, or protocol behavior that does not match the expected application. Inspect packet contents for anomalies not conforming to the expected protocol standard.",
+  "mitigations": [
+    "M1031: Network Intrusion Prevention",
+    "M1037: Filter Network Traffic \u2014 proxy and inspect egress"
+  ],
+  "platforms": [
+    "Windows",
+    "Linux",
+    "macOS",
+    "Network"
+  ],
+  "data_sources": [
+    "Network Traffic: Network Traffic Flow",
+    "Network Traffic: Network Traffic Content"
+  ],
+  "url": "https://attack.mitre.org/techniques/T1071/"
+}

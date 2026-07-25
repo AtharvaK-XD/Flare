@@ -1,0 +1,27 @@
+{
+  "id": "T1190",
+  "name": "Exploit Public-Facing Application",
+  "tactics": [
+    "Initial Access"
+  ],
+  "description": "Adversaries may attempt to exploit a weakness in an Internet-facing host or system to initially access a network. Common weaknesses include SQL injection, cross-site scripting, deserialization flaws, and remote code execution vulnerabilities in web servers, applications, and APIs.",
+  "detection": "Monitor application logs and web application firewalls for anomalous or malicious requests such as injection payloads, unusual user agents, and requests to sensitive paths. Correlate exploitation attempts with subsequent unexpected process execution on the server.",
+  "mitigations": [
+    "M1051: Update Software \u2014 patch known vulnerabilities promptly",
+    "M1050: Exploit Protection \u2014 deploy a web application firewall",
+    "M1030: Network Segmentation \u2014 isolate exposed services in a DMZ"
+  ],
+  "platforms": [
+    "Windows",
+    "Linux",
+    "macOS",
+    "Network",
+    "Containers",
+    "IaaS"
+  ],
+  "data_sources": [
+    "Application Log: Application Log Content",
+    "Network Traffic: Network Traffic Content"
+  ],
+  "url": "https://attack.mitre.org/techniques/T1190/"
+}

@@ -1,0 +1,25 @@
+{
+  "id": "T1055",
+  "name": "Process Injection",
+  "tactics": [
+    "Privilege Escalation",
+    "Defense Evasion"
+  ],
+  "description": "Adversaries may inject code into processes to evade process-based defenses and possibly elevate privileges. Running code in the context of another process may allow access to that process's memory, system resources, and elevated privileges, while masking execution under a legitimate process.",
+  "detection": "Monitor for API calls associated with injection such as CreateRemoteThread, WriteProcessMemory, and QueueUserAPC, and for processes exhibiting behavior inconsistent with their normal function. Endpoint detection of anomalous memory operations is key.",
+  "mitigations": [
+    "M1040: Behavior Prevention on Endpoint",
+    "M1026: Privileged Account Management"
+  ],
+  "platforms": [
+    "Windows",
+    "Linux",
+    "macOS"
+  ],
+  "data_sources": [
+    "Process: OS API Execution",
+    "Process: Process Access",
+    "Process: Process Modification"
+  ],
+  "url": "https://attack.mitre.org/techniques/T1055/"
+}

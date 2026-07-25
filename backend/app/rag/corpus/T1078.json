@@ -1,0 +1,33 @@
+{
+  "id": "T1078",
+  "name": "Valid Accounts",
+  "tactics": [
+    "Defense Evasion",
+    "Persistence",
+    "Privilege Escalation",
+    "Initial Access"
+  ],
+  "description": "Adversaries may obtain and abuse credentials of existing accounts as a means of gaining initial access, persistence, privilege escalation, or defense evasion. Compromised credentials may be used to bypass access controls and blend in with normal activity, making detection harder.",
+  "detection": "Monitor for anomalous account usage such as logins at unusual times, from unusual locations, or to systems the account does not normally access. Correlate valid-account logins with subsequent suspicious activity.",
+  "mitigations": [
+    "M1032: Multi-factor Authentication",
+    "M1026: Privileged Account Management",
+    "M1018: User Account Management \u2014 disable unused accounts"
+  ],
+  "platforms": [
+    "Windows",
+    "Linux",
+    "macOS",
+    "Network",
+    "Containers",
+    "SaaS",
+    "IaaS",
+    "Office 365",
+    "Azure AD"
+  ],
+  "data_sources": [
+    "User Account: User Account Authentication",
+    "Logon Session: Logon Session Creation"
+  ],
+  "url": "https://attack.mitre.org/techniques/T1078/"
+}

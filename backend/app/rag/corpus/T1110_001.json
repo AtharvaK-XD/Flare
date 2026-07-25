@@ -1,0 +1,30 @@
+{
+  "id": "T1110.001",
+  "name": "Brute Force: Password Guessing",
+  "tactics": [
+    "Credential Access"
+  ],
+  "description": "Adversaries with no prior knowledge of legitimate credentials may guess passwords to attempt access to accounts. Guessing passwords can be a risky option because it could cause numerous authentication failures and account lockouts. Adversaries often use lists of common passwords against many accounts or services such as SSH, Telnet, FTP, and web logins.",
+  "detection": "Monitor for many failed authentication attempts against a single account across services. Repeated SSH or web login failures from one source strongly indicate password guessing.",
+  "mitigations": [
+    "M1032: Multi-factor Authentication",
+    "M1036: Account Use Policies \u2014 lockout thresholds",
+    "M1027: Password Policies"
+  ],
+  "platforms": [
+    "Windows",
+    "Linux",
+    "macOS",
+    "Network",
+    "Containers",
+    "SaaS",
+    "IaaS",
+    "Office 365",
+    "Azure AD"
+  ],
+  "data_sources": [
+    "User Account: User Account Authentication",
+    "Application Log: Application Log Content"
+  ],
+  "url": "https://attack.mitre.org/techniques/T1110/001/"
+}

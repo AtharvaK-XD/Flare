@@ -1,0 +1,24 @@
+{
+  "id": "T1059.007",
+  "name": "Command and Scripting Interpreter: JavaScript",
+  "tactics": [
+    "Execution"
+  ],
+  "description": "Adversaries may abuse JavaScript to execute malicious code, including cross-site scripting delivered to browsers and server-side JavaScript such as Node.js. JavaScript and JScript can be executed by browsers, the Windows Script Host, and application runtimes to run attacker-controlled logic.",
+  "detection": "Monitor for execution of script interpreters and browser telemetry indicating injected or malicious scripts. Web application logs may show reflected or stored cross-site scripting payloads in parameters and stored content.",
+  "mitigations": [
+    "M1038: Execution Prevention \u2014 restrict script execution",
+    "M1021: Restrict Web-Based Content \u2014 enforce Content Security Policy"
+  ],
+  "platforms": [
+    "Windows",
+    "Linux",
+    "macOS"
+  ],
+  "data_sources": [
+    "Process: Process Creation",
+    "Script: Script Execution",
+    "Command: Command Execution"
+  ],
+  "url": "https://attack.mitre.org/techniques/T1059/007/"
+}

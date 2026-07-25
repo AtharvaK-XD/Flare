@@ -1,0 +1,20 @@
+{
+  "id": "T1592",
+  "name": "Gather Victim Host Information",
+  "tactics": [
+    "Reconnaissance"
+  ],
+  "description": "Adversaries may gather information about the victim's hosts that can be used during targeting. This includes administrative data, hardware and software inventory, operating system versions, and host configuration, which helps adversaries tailor exploits and tooling to the environment.",
+  "detection": "This activity is largely performed outside enterprise visibility. Where active collection reaches assets, monitor for enumeration attempts and unusual queries against exposed services that reveal host details.",
+  "mitigations": [
+    "M1056: Pre-compromise \u2014 limit host details exposed through banners and public sources"
+  ],
+  "platforms": [
+    "PRE"
+  ],
+  "data_sources": [
+    "Internet Scan: Response Content",
+    "Internet Scan: Response Metadata"
+  ],
+  "url": "https://attack.mitre.org/techniques/T1592/"
+}

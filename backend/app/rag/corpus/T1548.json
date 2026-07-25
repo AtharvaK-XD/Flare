@@ -1,0 +1,26 @@
+{
+  "id": "T1548",
+  "name": "Abuse Elevation Control Mechanism",
+  "tactics": [
+    "Privilege Escalation",
+    "Defense Evasion"
+  ],
+  "description": "Adversaries may circumvent mechanisms designed to control elevated privileges to gain higher-level permissions. This includes bypassing User Account Control on Windows, abusing sudo and sudo caching on Unix, and exploiting setuid/setgid binaries to run code with elevated rights.",
+  "detection": "Monitor for suspicious use of elevation mechanisms: unusual UAC auto-elevation, unexpected sudo invocations, and execution of setuid binaries by non-standard users. Correlate elevation events with subsequent privileged actions.",
+  "mitigations": [
+    "M1026: Privileged Account Management",
+    "M1038: Execution Prevention",
+    "M1028: Operating System Configuration"
+  ],
+  "platforms": [
+    "Windows",
+    "Linux",
+    "macOS"
+  ],
+  "data_sources": [
+    "Process: Process Creation",
+    "Command: Command Execution",
+    "Process: OS API Execution"
+  ],
+  "url": "https://attack.mitre.org/techniques/T1548/"
+}

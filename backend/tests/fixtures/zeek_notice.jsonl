@@ -1,0 +1,2 @@
+{"ts": 1546400000.0, "note": "SSH::Password_Guessing", "msg": "8.8.8.8 appears to be guessing SSH passwords", "id.orig_h": "8.8.8.8", "id.orig_p": 40000, "id.resp_h": "192.168.1.10", "id.resp_p": 22, "proto": "tcp"}
+{"ts": 1546400001.0, "uid": "CxYz", "id.orig_h": "8.8.8.8", "id.orig_p": 40001, "id.resp_h": "192.168.1.10", "id.resp_p": 22, "proto": "tcp"}

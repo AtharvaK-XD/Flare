@@ -1,0 +1,27 @@
+{
+  "id": "T1046",
+  "name": "Network Service Discovery",
+  "tactics": [
+    "Discovery"
+  ],
+  "description": "Adversaries attempt to get a listing of services running on remote hosts and local network infrastructure devices, including those that may be vulnerable to remote software exploitation. Methods include port and vulnerability scans using tools brought onto a system, or living-off-the-land utilities. Within cloud environments, adversaries may attempt to discover services running on other cloud hosts.",
+  "detection": "Monitor for many connection attempts from a single source to many destination ports or hosts in a short window, a classic port-scan signature. Use network intrusion detection systems to identify scanning tools by their traffic patterns, and correlate with new process execution of scanning utilities.",
+  "mitigations": [
+    "M1042: Disable or Remove Feature or Program \u2014 disable unused services",
+    "M1031: Network Intrusion Prevention \u2014 block scanning traffic",
+    "M1030: Network Segmentation \u2014 limit reachable services"
+  ],
+  "platforms": [
+    "Windows",
+    "Linux",
+    "macOS",
+    "Network",
+    "IaaS",
+    "Containers"
+  ],
+  "data_sources": [
+    "Network Traffic: Network Connection Creation",
+    "Cloud Service: Cloud Service Enumeration"
+  ],
+  "url": "https://attack.mitre.org/techniques/T1046/"
+}

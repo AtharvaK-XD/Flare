@@ -1,0 +1,20 @@
+{
+  "id": "T1590",
+  "name": "Gather Victim Network Information",
+  "tactics": [
+    "Reconnaissance"
+  ],
+  "description": "Adversaries may gather information about the victim's networks that can be used during targeting. This includes details of IP ranges, network topology, domain properties, and trust relationships, collected passively or through active scanning to plan later stages of an operation.",
+  "detection": "Much of this activity occurs outside enterprise visibility. Where active collection touches infrastructure, monitor for scanning and enumeration of network ranges and DNS records.",
+  "mitigations": [
+    "M1056: Pre-compromise \u2014 minimize the network information exposed publicly"
+  ],
+  "platforms": [
+    "PRE"
+  ],
+  "data_sources": [
+    "Internet Scan: Response Content",
+    "Internet Scan: Response Metadata"
+  ],
+  "url": "https://attack.mitre.org/techniques/T1590/"
+}
