@@ -24,6 +24,22 @@ _PROMPT = (Path(__file__).parent.parent / "prompts" / "classify.md").read_text(e
 
 _RAW_EXCERPT_MAX = 800
 
+#: MUST exceed the configured model's typical THINKING overhead plus the JSON
+#: body, not just the JSON body.
+#:
+#: Reasoning models (gemini-flash-latest, openai/gpt-oss-120b) spend the output
+#: allowance on hidden reasoning tokens FIRST. At the old budget of 300 the whole
+#: allowance was consumed thinking and the response came back with
+#: finish_reason=MAX_TOKENS and an EMPTY body — parsing.py then correctly raised
+#: "could not extract JSON", which looks like a parser bug and is not one.
+#: Measured with this prompt: ~58 output tokens of actual JSON, the rest thinking.
+#: 1200 clears both models with headroom. RE-MEASURE THIS AFTER ANY MODEL SWAP.
+_MAX_TOKENS = 1200
+
+#: Low but non-zero: the classifier must be near-deterministic, and 0.0 makes
+#: some models degenerate into repeating the schema instead of filling it.
+_TEMPERATURE = 0.1
+
 
 class ClassificationResult(FlareModel):
     """Strict classifier output — the fast tier must return exactly this."""
@@ -56,8 +72,8 @@ async def classify(state: TriageState, tr: NodeTrace) -> dict[str, Any]:
         provider = provider_for(state, ProviderTier.FAST)
         result = await provider.complete(
             prompt,
-            max_tokens=300,
-            temperature=0.1,
+            max_tokens=_MAX_TOKENS,
+            temperature=_TEMPERATURE,
             response_model=ClassificationResult,
             node="classify",  # type: ignore[call-arg]
         )

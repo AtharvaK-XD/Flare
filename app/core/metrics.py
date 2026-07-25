@@ -20,12 +20,22 @@ class _Bucket:
     calls: int = 0
     failures: int = 0
     retries: int = 0
+    #: Retries specifically caused by a 429 / quota wait. Split out from
+    #: ``retries`` because a benchmark that queued behind a free-tier limit is
+    #: NOT measuring the model's speed, and must say so.
+    rate_limit_retries: int = 0
     tokens_in: int = 0
     tokens_out: int = 0
     latencies: deque[float] = field(default_factory=lambda: deque(maxlen=_MAX_SAMPLES))
 
 
-def _percentile(samples: list[float], pct: float) -> float:
+def percentile(samples: list[float], pct: float) -> float:
+    """Nearest-rank percentile. Empty input is 0.0.
+
+    Public because the provider benchmark reports the same percentiles over its
+    own samples — percentile math must exist in exactly one place or two panels
+    can quote different p95s for the same calls.
+    """
     if not samples:
         return 0.0
     ordered = sorted(samples)
@@ -65,9 +75,32 @@ class MetricsRegistry:
             b.tokens_out += tokens_out
             b.latencies.append(latency_ms)
 
-    def record_retry(self, provider: str, model: str = "-", node: str = "-") -> None:
+    def record_retry(
+        self,
+        provider: str,
+        model: str = "-",
+        node: str = "-",
+        *,
+        rate_limited: bool = False,
+    ) -> None:
         with self._lock:
-            self._bucket((provider, model, node)).retries += 1
+            bucket = self._bucket((provider, model, node))
+            bucket.retries += 1
+            if rate_limited:
+                bucket.rate_limit_retries += 1
+
+    def rate_limit_retries(self, provider: str, model: str | None = None) -> int:
+        """Total 429-driven retries for a provider (optionally one model).
+
+        The benchmark samples this before and after each tier: a non-zero delta
+        means that tier's latency numbers include free-tier queueing.
+        """
+        with self._lock:
+            return sum(
+                bucket.rate_limit_retries
+                for (bucket_provider, bucket_model, _), bucket in self._buckets.items()
+                if bucket_provider == provider and (model is None or bucket_model == model)
+            )
 
     def _estimated_cost(self, model: str, tokens_in: int, tokens_out: int) -> float:
         rate = COST_PER_1K_TOKENS.get(model, 0.0)
@@ -82,6 +115,7 @@ class MetricsRegistry:
             "calls": 0,
             "failures": 0,
             "retries": 0,
+            "rate_limit_retries": 0,
             "tokens_in": 0,
             "tokens_out": 0,
             "estimated_cost": 0.0,
@@ -98,11 +132,12 @@ class MetricsRegistry:
                     "calls": b.calls,
                     "failures": b.failures,
                     "retries": b.retries,
+                    "rate_limit_retries": b.rate_limit_retries,
                     "tokens_in": b.tokens_in,
                     "tokens_out": b.tokens_out,
                     "avg_latency_ms": round(avg, 2),
-                    "p50_latency_ms": round(_percentile(samples, 50), 2),
-                    "p95_latency_ms": round(_percentile(samples, 95), 2),
+                    "p50_latency_ms": round(percentile(samples, 50), 2),
+                    "p95_latency_ms": round(percentile(samples, 95), 2),
                     "failure_rate": round(b.failures / b.calls, 4) if b.calls else 0.0,
                     "estimated_cost": cost,
                 }
@@ -110,6 +145,7 @@ class MetricsRegistry:
             totals["calls"] += b.calls
             totals["failures"] += b.failures
             totals["retries"] += b.retries
+            totals["rate_limit_retries"] += b.rate_limit_retries
             totals["tokens_in"] += b.tokens_in
             totals["tokens_out"] += b.tokens_out
             totals["estimated_cost"] = round(totals["estimated_cost"] + cost, 6)

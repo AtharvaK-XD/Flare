@@ -14,6 +14,10 @@ from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse
 from starlette.exceptions import HTTPException as StarletteHTTPException
 
+from app.core.logging import get_logger
+
+log = get_logger(__name__)
+
 
 class FlareError(Exception):
     """Base Flare error. Subclasses fix ``code`` and ``http_status``."""
@@ -38,6 +42,19 @@ class NotFoundError(FlareError):
 class ValidationError(FlareError):
     code = "validation_error"
     http_status = 422
+
+
+class BadRequestError(FlareError):
+    """A rejected request VALUE (e.g. a sample size over the cap).
+
+    Carries the contract's ``validation_error`` code — the frontend switches on
+    ``code``, not status — at 400 rather than 422, because the value parsed fine
+    and was refused on policy grounds. Refusing loudly beats silently truncating
+    the caller's request into something smaller than they asked for.
+    """
+
+    code = "validation_error"
+    http_status = 400
 
 
 class RateLimitedError(FlareError):
@@ -92,22 +109,72 @@ async def _request_validation_handler(
     )
 
 
+#: HTTP status -> contract error code. Anything absent falls back by class, so a
+#: status nobody anticipated still produces the frozen envelope rather than
+#: Starlette's ``{"detail": ...}`` — the frontend switches on ``code``, and a
+#: response missing it is unhandleable.
+_STATUS_CODES: dict[int, str] = {
+    400: "validation_error",
+    401: "unauthorized",
+    403: "forbidden",
+    404: "not_found",
+    405: "method_not_allowed",
+    409: "conflict",
+    422: "validation_error",
+    429: "rate_limited",
+    502: "provider_error",
+    503: "rate_limited",
+}
+
+
+def _code_for_status(status: int) -> str:
+    known = _STATUS_CODES.get(status)
+    if known is not None:
+        return known
+    return "validation_error" if 400 <= status < 500 else "internal_error"
+
+
 async def _http_exception_handler(
     _request: Request, exc: StarletteHTTPException
 ) -> JSONResponse:
-    code = "not_found" if exc.status_code == 404 else "internal_error"
-    if exc.status_code == 429:
-        code = "rate_limited"
+    """Every Starlette HTTPException, INCLUDING the router's own 404 and 405.
+
+    Unknown routes never reach a Flare handler, so without this an unrecognized
+    path would answer ``{"detail": "Not Found"}`` — a different shape from every
+    other error the API produces.
+    """
     return JSONResponse(
         status_code=exc.status_code,
-        content=_envelope(code, str(exc.detail), None),
+        content=_envelope(_code_for_status(exc.status_code), str(exc.detail), None),
+        headers=getattr(exc, "headers", None),
     )
 
 
-async def _unhandled_handler(_request: Request, exc: Exception) -> JSONResponse:
+async def _unhandled_handler(request: Request, exc: Exception) -> JSONResponse:
+    """Last resort. Logs the cause with context; the CLIENT is told nothing.
+
+    An unhandled exception is a bug in this service, and its text can carry
+    internals (paths, SQL, occasionally a token). It is logged with the traceback
+    and the request id, and the response body stays generic — the request id is
+    the join key between the two.
+    """
+    request_id = getattr(request.state, "request_id", None)
+    log.error(
+        "api.unhandled_exception",
+        path=request.url.path,
+        method=request.method,
+        request_id=request_id,
+        error_type=type(exc).__name__,
+        error=str(exc),
+        exc_info=exc,
+    )
     return JSONResponse(
         status_code=500,
-        content=_envelope("internal_error", "Internal server error", None),
+        content=_envelope(
+            "internal_error",
+            "Internal server error",
+            {"request_id": request_id} if request_id else None,
+        ),
     )
 
 

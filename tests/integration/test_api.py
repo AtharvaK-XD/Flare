@@ -692,7 +692,11 @@ async def test_replay_status_shape_matches_contract(ctx: dict[str, Any]) -> None
     assert resp.status_code == 200
     body = resp.json()
 
-    assert set(body) == {
+    # The frozen §5 keys must ALL be present and correctly named. Extra keys are
+    # allowed and are checked against an explicit allow-list below: a JSON client
+    # that only knows §5 ignores them, but an accidental key still has to be a
+    # deliberate decision rather than a typo nobody noticed.
+    contract_keys = {
         "state",
         "dataset",
         "events_per_second",
@@ -701,8 +705,18 @@ async def test_replay_status_shape_matches_contract(ctx: dict[str, Any]) -> None
         "queue_depth",
         "started_at",
     }
+    additive_keys = {"skipped"}  # records the parsers refused (Phase 13)
+
+    assert contract_keys <= set(body), (
+        f"replay status dropped contract key(s): {sorted(contract_keys - set(body))}"
+    )
+    assert set(body) - contract_keys <= additive_keys, (
+        f"undeclared extra key(s) in replay status: "
+        f"{sorted(set(body) - contract_keys - additive_keys)}"
+    )
     assert body["state"] == "idle"
     assert body["queue_depth"] == {"triage": 1, "enrich": 2}
+    assert body["skipped"] == 0
 
 
 async def test_replay_lifecycle_and_bus_publishes(ctx: dict[str, Any]) -> None:

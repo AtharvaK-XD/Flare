@@ -27,6 +27,10 @@ class ReplayStatus(FlareModel):
     total: int | None = None
     queue_depth: dict[str, int] = {}
     started_at: datetime | None = None
+    #: Records the parsers refused (malformed rows, down-sampled benign flows).
+    #: Additive field: without it "300 records replayed, 180 alerts" looks like
+    #: 120 lost alerts rather than 120 rows that were never alerts.
+    skipped: int = 0
 
 
 class SystemNotice(FlareModel):

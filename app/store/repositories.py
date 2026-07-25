@@ -10,6 +10,7 @@ from __future__ import annotations
 import builtins
 from dataclasses import dataclass, field
 from datetime import UTC, datetime, timedelta
+from typing import TypeVar
 
 from sqlalchemy import Select, case, delete, func, select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -24,6 +25,7 @@ from app.schemas import (
     BenchmarkResult,
     BenchmarkRunDetail,
     ConfusionMatrix,
+    DisagreementExample,
     Enrichment,
     EvalRunDetail,
     IocVerdict,
@@ -34,6 +36,7 @@ from app.schemas import (
     Remediation,
     RemediationStep,
     Severity,
+    TargetReport,
     TimelineBucket,
     TraceNode,
 )
@@ -41,7 +44,9 @@ from app.store import models
 
 MALICIOUS_SCORE_THRESHOLD = 50.0
 
-_SEVERITY_RANK = {"critical": 5, "high": 4, "medium": 3, "low": 2, "info": 1}
+#: Stamped on any run row the staleness sweep reaps. Kept as a module constant so
+#: the sweeper, the API and the tests all assert on ONE string.
+STALE_RUN_ERROR = "stale: exceeded timeout, likely crashed process"
 
 
 def _now() -> datetime:
@@ -49,10 +54,72 @@ def _now() -> datetime:
 
 
 def _severity_rank_case() -> Case:
+    """SQL ordering that matches the app's Python severity ordering exactly.
+
+    Built from ``app.agent.state.SEVERITY_RANK`` rather than a second hand-kept
+    table: two rankings that drift make the `-severity` sort disagree with every
+    in-process comparison, and nothing would fail loudly when they do.
+    """
+    from app.agent.state import SEVERITY_RANK
+
     return case(
-        *[(models.Alert.severity == name, rank) for name, rank in _SEVERITY_RANK.items()],
+        *[
+            (models.Alert.severity == severity.value, rank)
+            for severity, rank in SEVERITY_RANK.items()
+        ],
         else_=0,
     )
+
+
+#: Both run tables share ``models.RunRowMixin``'s lifecycle columns, so the
+#: staleness helpers below are written once against that shape.
+RunModel = TypeVar("RunModel", models.EvalRun, models.BenchmarkRun)
+
+
+async def _reap_stale(
+    session: AsyncSession, model: type[RunModel], cutoff: datetime
+) -> builtins.list[str]:
+    """Mark every ``running`` row older than ``cutoff`` as failed. Returns their ids.
+
+    A crashed process leaves its row in ``running`` forever, and the "already in
+    flight" guard then rejects every future run with a 409 that no amount of
+    waiting clears. Reaping is therefore not housekeeping — it is what keeps the
+    endpoint usable after a crash.
+    """
+    rows = (
+        (
+            await session.execute(
+                select(model).where(model.status == "running", model.started_at < cutoff)
+            )
+        )
+        .scalars()
+        .all()
+    )
+    for row in rows:
+        row.status = "failed"
+        row.completed_at = _now()
+        row.error = STALE_RUN_ERROR
+    if rows:
+        await session.flush()
+    return [row.id for row in rows]
+
+
+async def _active_run_id(
+    session: AsyncSession, model: type[RunModel], cutoff: datetime
+) -> str | None:
+    """The id of a GENUINELY fresh in-flight run, or None.
+
+    ``cutoff`` excludes rows old enough to be presumed crashed, so a dead run can
+    never block a new one — the exact bug that made POST /run 409 permanently.
+    """
+    return (
+        await session.execute(
+            select(model.id)
+            .where(model.status == "running", model.started_at >= cutoff)
+            .order_by(model.started_at.desc())
+            .limit(1)
+        )
+    ).scalar_one_or_none()
 
 
 def _enrichment_schema(row: models.Enrichment | None) -> Enrichment | None:
@@ -419,20 +486,73 @@ def _eval_detail(row: models.EvalRun) -> EvalRunDetail:
             if row.confusion_matrix
             else None
         ),
+        attack_type=(
+            TargetReport.model_validate(row.attack_type_metrics)
+            if row.attack_type_metrics
+            else None
+        ),
         error=row.error,
     )
 
 
 class EvalRunRepository:
-    async def create(self, session: AsyncSession, sample_size: int) -> EvalRunDetail:
+    async def create(
+        self, session: AsyncSession, sample_size: int, run_id: str | None = None
+    ) -> EvalRunDetail:
+        """Open a run in ``running``. ``run_id`` lets a caller fix the id up front
+        (the API returns it in the 202 before the work starts)."""
         row = models.EvalRun(status="running", sample_size=sample_size)
+        if run_id is not None:
+            row.id = run_id
         session.add(row)
+        await session.flush()
+        return _eval_detail(row)
+
+    async def save_progress(
+        self,
+        session: AsyncSession,
+        run_id: str,
+        overall: OverallMetrics | None = None,
+        per_class: builtins.list[PerClassMetric] | None = None,
+        confusion_matrix: ConfusionMatrix | None = None,
+        attack_type: TargetReport | None = None,
+        sample_size: int | None = None,
+    ) -> EvalRunDetail | None:
+        """Write partial metrics WITHOUT leaving ``running``.
+
+        A long eval is otherwise a blank panel for minutes; persisting each decile
+        lets the polling frontend fill in as the run proceeds. Status is untouched
+        so nothing reads a partial report as final.
+        """
+        row = await session.get(models.EvalRun, run_id)
+        if row is None:
+            return None
+        if sample_size is not None:
+            row.sample_size = sample_size
+        if overall is not None:
+            row.overall = overall.model_dump(mode="json")
+        if per_class is not None:
+            row.per_class = [p.model_dump(mode="json") for p in per_class]
+        if confusion_matrix is not None:
+            row.confusion_matrix = confusion_matrix.model_dump(mode="json")
+        if attack_type is not None:
+            row.attack_type_metrics = attack_type.model_dump(mode="json")
         await session.flush()
         return _eval_detail(row)
 
     async def get(self, session: AsyncSession, run_id: str) -> EvalRunDetail | None:
         row = await session.get(models.EvalRun, run_id)
         return _eval_detail(row) if row else None
+
+    async def reap_stale(
+        self, session: AsyncSession, cutoff: datetime
+    ) -> builtins.list[str]:
+        """Fail every ``running`` row started before ``cutoff``. Returns their ids."""
+        return await _reap_stale(session, models.EvalRun, cutoff)
+
+    async def active_run_id(self, session: AsyncSession, cutoff: datetime) -> str | None:
+        """Id of a genuinely fresh in-flight run (started at or after ``cutoff``)."""
+        return await _active_run_id(session, models.EvalRun, cutoff)
 
     async def list(self, session: AsyncSession) -> builtins.list[EvalRunDetail]:
         res = await session.execute(
@@ -447,15 +567,21 @@ class EvalRunRepository:
         overall: OverallMetrics,
         per_class: builtins.list[PerClassMetric],
         confusion_matrix: ConfusionMatrix,
+        attack_type: TargetReport | None = None,
+        sample_size: int | None = None,
     ) -> EvalRunDetail | None:
         row = await session.get(models.EvalRun, run_id)
         if row is None:
             return None
         row.status = "completed"
         row.completed_at = _now()
+        if sample_size is not None:
+            row.sample_size = sample_size
         row.overall = overall.model_dump(mode="json")
         row.per_class = [p.model_dump(mode="json") for p in per_class]
         row.confusion_matrix = confusion_matrix.model_dump(mode="json")
+        if attack_type is not None:
+            row.attack_type_metrics = attack_type.model_dump(mode="json")
         await session.flush()
         return _eval_detail(row)
 
@@ -481,13 +607,20 @@ def _benchmark_detail(row: models.BenchmarkRun) -> BenchmarkRunDetail:
         completed_at=row.completed_at,
         results=[BenchmarkResult.model_validate(d) for d in (row.results or [])],
         agreement_rate=row.agreement_rate,
+        disagreement_examples=[
+            DisagreementExample.model_validate(d) for d in (row.disagreement_examples or [])
+        ],
         error=row.error,
     )
 
 
 class BenchmarkRunRepository:
-    async def create(self, session: AsyncSession, sample_size: int) -> BenchmarkRunDetail:
+    async def create(
+        self, session: AsyncSession, sample_size: int, run_id: str | None = None
+    ) -> BenchmarkRunDetail:
         row = models.BenchmarkRun(status="running", sample_size=sample_size)
+        if run_id is not None:
+            row.id = run_id
         session.add(row)
         await session.flush()
         return _benchmark_detail(row)
@@ -495,6 +628,16 @@ class BenchmarkRunRepository:
     async def get(self, session: AsyncSession, run_id: str) -> BenchmarkRunDetail | None:
         row = await session.get(models.BenchmarkRun, run_id)
         return _benchmark_detail(row) if row else None
+
+    async def reap_stale(
+        self, session: AsyncSession, cutoff: datetime
+    ) -> builtins.list[str]:
+        """Fail every ``running`` row started before ``cutoff``. Returns their ids."""
+        return await _reap_stale(session, models.BenchmarkRun, cutoff)
+
+    async def active_run_id(self, session: AsyncSession, cutoff: datetime) -> str | None:
+        """Id of a genuinely fresh in-flight run (started at or after ``cutoff``)."""
+        return await _active_run_id(session, models.BenchmarkRun, cutoff)
 
     async def list(self, session: AsyncSession) -> builtins.list[BenchmarkRunDetail]:
         res = await session.execute(
@@ -507,15 +650,22 @@ class BenchmarkRunRepository:
         session: AsyncSession,
         run_id: str,
         results: builtins.list[BenchmarkResult],
-        agreement_rate: float,
+        agreement_rate: float | None,
+        disagreement_examples: builtins.list[DisagreementExample] | None = None,
+        sample_size: int | None = None,
     ) -> BenchmarkRunDetail | None:
         row = await session.get(models.BenchmarkRun, run_id)
         if row is None:
             return None
         row.status = "completed"
         row.completed_at = _now()
+        if sample_size is not None:
+            row.sample_size = sample_size
         row.results = [r.model_dump(mode="json") for r in results]
         row.agreement_rate = agreement_rate
+        row.disagreement_examples = [
+            d.model_dump(mode="json") for d in (disagreement_examples or [])
+        ]
         await session.flush()
         return _benchmark_detail(row)
 

@@ -25,6 +25,7 @@ from typing import Any
 from sqlalchemy import event, func, select
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
 
+from app.agent.state import TriageState
 from app.config import get_settings
 from app.core.bus import EventBus
 from app.schemas import AlertStatus, AttackType, NormalizedAlert, Severity, TraceNode
@@ -42,7 +43,9 @@ ENRICH_SECONDS = 0.25  # simulated rate-capped enrichment (single worker => ~4/s
 # --------------------------------------------------------------------------- stubs
 
 
-async def stub_classify(alert: NormalizedAlert, config: Any = None, stop_after: Any = None) -> Any:
+async def stub_classify(
+    alert: NormalizedAlert, config: Any = None, stop_after: Any = None
+) -> TriageState:
     # ~55% route to enrich (high/medium), ~45% finalize on the fast path (info)
     idx = int(alert.id.rsplit("-", 1)[-1])
     if idx % 20 == 0:
@@ -64,7 +67,7 @@ async def stub_classify(alert: NormalizedAlert, config: Any = None, stop_after: 
     }
 
 
-async def stub_resume(state: dict[str, Any], config: Any = None) -> AsyncIterator[dict[str, Any]]:
+async def stub_resume(state: TriageState, config: Any = None) -> AsyncIterator[TriageState]:
     base = state["trace"]
     await asyncio.sleep(ENRICH_SECONDS)  # the deliberate rate cap
     yield {

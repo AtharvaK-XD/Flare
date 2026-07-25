@@ -33,6 +33,12 @@ log = get_logger(__name__)
 
 LoopFactory = Callable[[], Awaitable[None]]
 
+#: Bounded settle loop for async-generator finalizers on shutdown. Two passes at
+#: a second each is far more than the tick or two they actually need, and still
+#: cannot turn a wedged finalizer into a hung shutdown.
+_SETTLE_PASSES = 2
+_SETTLE_TIMEOUT = 1.0
+
 
 def default_context() -> WorkerContext:
     """Wire a context from the process-wide singletons."""
@@ -95,6 +101,18 @@ class WorkerManager:
             task.cancel()
         await asyncio.gather(*all_tasks, return_exceptions=True)
 
+        # 3. let async-generator finalizers finish.
+        #
+        # A worker cancelled INSIDE the graph's `astream(...)` runs the
+        # generator's `aclose()` on the way out, and asyncio schedules that as a
+        # separate `async_generator_athrow` task. The worker task is already
+        # `done()` at that point, so gathering it above proves nothing about the
+        # finalizer — which is still pending, still holds the graph's state, and
+        # shows up as an orphan task to anything that looks. Waiting for them
+        # here is what makes "zero orphan tasks after stop()" actually true
+        # rather than true-if-you-check-late-enough.
+        await self._settle_async_generators()
+
         pending = [t for t in all_tasks if not t.done()]
         dropped = remaining_triage + remaining_enrich
         log.info(
@@ -108,6 +126,30 @@ class WorkerManager:
 
         self._tasks = {"triage": [], "enrich": []}
         self._stats_task = None
+
+    async def _settle_async_generators(self) -> None:
+        """Wait for pending generator finalizers, bounded. Never raises."""
+        current = asyncio.current_task()
+        for _ in range(_SETTLE_PASSES):
+            finalizers = [
+                task
+                for task in asyncio.all_tasks()
+                if task is not current
+                and not task.done()
+                and "async_generator_athrow" in repr(task.get_coro())
+            ]
+            if not finalizers:
+                return
+            await asyncio.wait(finalizers, timeout=_SETTLE_TIMEOUT)
+        remaining = [
+            task
+            for task in asyncio.all_tasks()
+            if task is not current
+            and not task.done()
+            and "async_generator_athrow" in repr(task.get_coro())
+        ]
+        if remaining:
+            log.warning("workers.asyncgen_finalizers_pending", count=len(remaining))
 
     # -- supervision -------------------------------------------------------
 

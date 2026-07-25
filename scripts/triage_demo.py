@@ -21,6 +21,8 @@ from typing import Any
 
 from app.agent.graph import run_triage
 from app.agent.nodes.classify import ClassificationResult
+from app.agent.state import TriageState
+from app.intel.models import IndicatorType
 from app.providers.base import CompletionResult
 from app.rag.mitre_loader import load_corpus, techniques_for
 from app.schemas import (
@@ -149,7 +151,7 @@ class StubRegistry:
 
 class StubAggregator:
     async def lookup_many(
-        self, pairs: list[tuple[str, str]]
+        self, pairs: list[tuple[str, IndicatorType]]
     ) -> list[IocVerdict | None]:
         out: list[IocVerdict | None] = []
         for indicator, itype in pairs:
@@ -239,11 +241,12 @@ def _alerts() -> list[NormalizedAlert]:
 # --------------------------------------------------------------------------- run
 
 
-def _fmt_trace(state: dict[str, Any]) -> str:
+def _fmt_trace(state: TriageState) -> str:
     marks = {"ok": "R", "skipped": ".", "failed": "X"}
     order = {"classify": 0, "enrich": 1, "retrieve": 2, "reason": 3, "recommend": 4}
-    by_node = {t.node: t.status for t in state["trace"]}
-    return "".join(marks.get(by_node.get(n, "skipped"), "?") for n in sorted(order, key=order.get))
+    by_node: dict[str, str] = {t.node: t.status for t in state["trace"]}
+    nodes = sorted(order, key=lambda name: order[name])
+    return "".join(marks.get(by_node.get(n, "skipped"), "?") for n in nodes)
 
 
 async def main() -> None:

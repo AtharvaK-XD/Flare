@@ -13,7 +13,12 @@ from app.api.errors import FlareError, ProviderError, RateLimitedError
 from app.config import get_settings
 from app.core.logging import get_logger
 from app.core.metrics import metrics
-from app.core.retry import http_status_of, with_retry
+from app.core.retry import (
+    http_status_of,
+    is_permanent_quota_exhaustion,
+    is_rate_limit,
+    with_retry,
+)
 from app.providers.base import CompletionResult, ProviderHealth
 from app.providers.parsing import build_schema_instruction, coerce_to_model, extract_json_meta
 from app.schemas import ProviderTier
@@ -36,6 +41,8 @@ class GeminiProvider:
         self._api_key = settings.google_api_key
         self._model = settings.gemini_model
         self._generate = generate
+        #: Set when a call was retried because of a 429. Read by the benchmark.
+        self.throttled = False
 
     @property
     def name(self) -> str:
@@ -60,6 +67,13 @@ class GeminiProvider:
         )
         return gm.generate_content(prompt)
 
+    def _on_retry(self, model: str, node: str, exc: BaseException) -> None:
+        throttled = is_rate_limit(exc)
+        if throttled:
+            self.throttled = True
+            log.info("gemini.throttled", model=model, node=node)
+        metrics.record_retry(self.name, model, node, rate_limited=throttled)
+
     def _map_error(self, exc: BaseException, attempts: int) -> FlareError:
         status = http_status_of(exc)
         name = type(exc).__name__.lower()
@@ -67,6 +81,18 @@ class GeminiProvider:
             return ProviderError(
                 "Gemini authentication failed — check GOOGLE_API_KEY", detail=str(exc)[:500]
             )
+        if is_permanent_quota_exhaustion(exc):
+            # 429 with "limit: 0" — this key may not call this model AT ALL.
+            # ProviderError (not RateLimitedError) because nothing about waiting
+            # or requeueing will ever make it succeed: it is a wrong GEMINI_MODEL.
+            err_permanent = ProviderError(
+                f"Gemini model {self._model!r} is not available on this key "
+                "(quota limit: 0 — permanent, not a transient rate limit). Set "
+                "GEMINI_MODEL=gemini-flash-latest.",
+                detail=str(exc)[:500],
+            )
+            err_permanent.attempts = attempts  # type: ignore[attr-defined]
+            return err_permanent
         if status == 429 or "resourceexhausted" in name:
             err: FlareError = RateLimitedError("Gemini rate limit hit", detail=str(exc)[:500])
         else:
@@ -109,7 +135,7 @@ class GeminiProvider:
             attempts=ATTEMPTS,
             base_delay=0.5,
             provider=self.name,
-            on_retry=lambda a, d, e: metrics.record_retry(self.name, use_model, node),
+            on_retry=lambda a, d, e: self._on_retry(use_model, node, e),
         )
         async def _call() -> Any:
             return await asyncio.wait_for(

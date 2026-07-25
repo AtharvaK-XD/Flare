@@ -7,11 +7,27 @@ instead. Missing API keys never crash startup — they default to ``None`` and
 
 from __future__ import annotations
 
+import warnings
 from functools import lru_cache
 from pathlib import Path
 
 from pydantic import BaseModel, field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
+
+#: Gemini models this project has observed returning a PERMANENT 429 on a plain
+#: free-tier key: the quota violation reports ``limit: 0``, i.e. the model is not
+#: served to free keys at all. That is a misconfiguration, not a transient rate
+#: limit, and retrying it only burns the demo clock. Kept as data (not a hard
+#: rejection) because a paid key CAN call these — the validator warns, and
+#: ``scripts/smoke_providers.py`` proves it per key.
+ZERO_FREE_QUOTA_GEMINI_MODELS: frozenset[str] = frozenset(
+    {"gemini-2.0-flash", "gemini-2.0-flash-001", "gemini-2.0-flash-lite"}
+)
+
+#: Groq model ids retired from the free tier / renamed. Same policy as above.
+DEPRECATED_GROQ_MODELS: frozenset[str] = frozenset(
+    {"llama-3.1-70b-versatile", "mixtral-8x7b-32768"}
+)
 
 
 class ProviderSettings(BaseModel):
@@ -58,11 +74,16 @@ class Settings(BaseSettings):
     cors_origins: list[str] = ["http://localhost:5173"]
 
     groq_api_key: str | None = None
-    groq_fast_model: str = "llama-3.1-8b-instant"
+    # Phase 13: swapped off llama-3.1-8b-instant. Confirmed against Groq's live
+    # /v1/models listing for this account — slugs on Groq change, so re-confirm
+    # before editing this default rather than assuming.
+    groq_fast_model: str = "openai/gpt-oss-120b"
     groq_quality_model: str = "llama-3.3-70b-versatile"
 
     google_api_key: str | None = None
-    gemini_model: str = "gemini-2.0-flash"
+    # Phase 13: gemini-2.0-flash returns a PERMANENT 429 (quota limit: 0) on a
+    # free-tier key. gemini-flash-latest is what a free key can actually call.
+    gemini_model: str = "gemini-flash-latest"
 
     abuseipdb_api_key: str | None = None
     virustotal_api_key: str | None = None
@@ -84,10 +105,35 @@ class Settings(BaseSettings):
 
     enable_benchmark_mode: bool = False
 
+    # Offline demo mode (Phase 13). Every network leaf — both LLM tiers, both
+    # intel sources, the embedding model — is served by deterministic in-process
+    # stand-ins. The graph, routers, workers, queues, bus, DB and API are the
+    # real ones, so the pipeline exercised is the production pipeline.
+    offline_mode: bool = False
+
     # Agent / LangGraph orchestration (Phase 8)
     ioc_escalation_score: int = 80
     enrich_low_severity: bool = False
-    triage_timeout_seconds: float = 45.0
+    # Wall-clock budget for a FULL run_triage (classify -> recommend).
+    #
+    # Measured on demo hardware with the configured models, warm:
+    #   classify (gpt-oss-120b)     1.6s
+    #   enrich                      1.0s
+    #   retrieve                    1.9s
+    #   reason (gemini-flash-latest) 24.1s   <- reasoning model, thinks first
+    #   recommend (gemini-flash-latest) 15.9s
+    #   total                      ~44.6s
+    #
+    # The old 45s budget left ~0.4s of headroom and timed out on any slower
+    # response. The live fast path is unaffected either way — the triage worker
+    # calls stop_after="classify" and returns in ~2s — so this budget really only
+    # bounds the full path (eval with enrichment on, seeding, demos).
+    triage_timeout_seconds: float = 120.0
+    # Load the sentence-transformers model in the BACKGROUND at startup. Cold
+    # load is ~34s and, unwarmed, it lands inside the first alert's retrieve node
+    # and consumes the entire triage budget. Backgrounded, boot stays instant and
+    # the first alert is already warm.
+    warm_embedding_model_on_startup: bool = True
 
     # Workers, queues & bus (Phase 9)
     event_bus_maxsize: int = 100
@@ -98,12 +144,50 @@ class Settings(BaseSettings):
     stats_publish_interval_seconds: float = 2.0
     worker_restart_cap_per_min: int = 5
 
+    # Evaluation harness (Phase 11)
+    eval_sample_size: int = 200
+    eval_max_sample_size: int = 2000
+    eval_concurrency: int = 4
+    # Fixed seed => two runs draw the SAME stratified sample. LLM decoding may
+    # still vary slightly between runs; that is noted in the run's completion notice.
+    eval_seed: int = 20260725
+    # Enrichment is OFF by default: eval measures classification quality, and 200
+    # alerts through VirusTotal at 4 req/min is ~50 minutes. Flip to False to
+    # measure the full pipeline (post-IOC-escalation severity) instead.
+    eval_skip_enrich: bool = True
+    # Below this many labeled rows the eval is scoring noise (a 6-row fallback
+    # produces a real-looking macro-F1 that means nothing). Load-time checks warn
+    # LOUDLY rather than proceeding quietly. See app/evaluation/ground_truth.py.
+    eval_min_label_rows: int = 50
+
+    # Provider benchmark (Phase 12)
+    # Calls are sequential per tier and doubled across tiers, so the cap is low on
+    # purpose: 50 alerts is already 100 live LLM calls.
+    benchmark_max_sample: int = 50
+    benchmark_sample_size: int = 25
+    # Discarded per tier. Cold connection setup would otherwise be charged
+    # entirely to whichever tier happened to run first.
+    benchmark_warmup: int = 2
+
+    # Stale-run reaping (Phase 13). A crashed process leaves an eval/benchmark row
+    # in status=running forever, and the "already in flight" check then 409s every
+    # subsequent POST /run permanently. A run whose started_at is older than this
+    # is presumed dead and marked failed.
+    run_stale_timeout_seconds: int = 300
+    run_stale_sweep_interval_seconds: float = 60.0
 
     @field_validator("api_port")
     @classmethod
     def _port_in_range(cls, v: int) -> int:
         if not 1 <= v <= 65535:
             raise ValueError("API_PORT must be between 1 and 65535")
+        return v
+
+    @field_validator("eval_concurrency")
+    @classmethod
+    def _eval_concurrency_positive(cls, v: int) -> int:
+        if v < 1:
+            raise ValueError("EVAL_CONCURRENCY must be >= 1")
         return v
 
     @field_validator("vt_rate_limit_per_min")
@@ -126,6 +210,44 @@ class Settings(BaseSettings):
         p = Path(v).expanduser().resolve()
         p.mkdir(parents=True, exist_ok=True)
         return p
+
+    @field_validator("gemini_model")
+    @classmethod
+    def _gemini_model_callable(cls, v: str) -> str:
+        """Blank falls back to the working default; a zero-quota model warns loudly.
+
+        Not an error: a paid key can call these. But silently shipping a model
+        that 429s on every call is exactly how Phase 11/12 lost a demo, so the
+        misconfiguration has to be audible at import time.
+        """
+        model = v.strip()
+        if not model:
+            return "gemini-flash-latest"
+        if model in ZERO_FREE_QUOTA_GEMINI_MODELS:
+            warnings.warn(
+                f"GEMINI_MODEL={model!r} has zero free-tier quota on Google's free keys "
+                "and returns a PERMANENT 429 (not a transient rate limit). Use "
+                "'gemini-flash-latest' unless this key is on a paid plan. Verify with "
+                "`make smoke`.",
+                RuntimeWarning,
+                stacklevel=2,
+            )
+        return model
+
+    @field_validator("groq_fast_model", "groq_quality_model")
+    @classmethod
+    def _groq_model_callable(cls, v: str) -> str:
+        model = v.strip()
+        if not model:
+            raise ValueError("Groq model id must not be empty")
+        if model in DEPRECATED_GROQ_MODELS:
+            warnings.warn(
+                f"Groq model {model!r} is decommissioned; calls will 404. Check "
+                "https://console.groq.com/docs/models for the current slug.",
+                RuntimeWarning,
+                stacklevel=2,
+            )
+        return model
 
 
     @property

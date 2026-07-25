@@ -8,6 +8,7 @@ unreliable. A missing/empty index degrades remediation quality — it never rais
 from __future__ import annotations
 
 import asyncio
+from functools import partial
 from typing import Any
 
 from app.core.logging import get_logger
@@ -44,8 +45,16 @@ class MitreRetriever:
     async def retrieve(
         self, query: str, attack_type: AttackType | None = None, k: int = 4
     ) -> list[MitreTechnique]:
+        """Retrieve grounding techniques WITHOUT blocking the event loop.
+
+        chromadb's client is synchronous — ``count`` and ``query`` both do disk
+        I/O and HNSW search on the calling thread. Called bare from a coroutine
+        they stall every other alert, every SSE subscriber and the heartbeat for
+        the duration. Each one goes through ``asyncio.to_thread``, as the
+        embedding encode already did.
+        """
         col = await self._get_collection()
-        if col.count() == 0:
+        if await asyncio.to_thread(col.count) == 0:
             log.warning("rag.empty_index")
             return []
 
@@ -55,10 +64,14 @@ class MitreRetriever:
         where = {"technique_id": {"$in": ids_filter}} if ids_filter else None
         n = max(k * 3, 6)
 
-        res = col.query(query_embeddings=[q_emb], n_results=n, where=where)
+        res = await asyncio.to_thread(
+            partial(col.query, query_embeddings=[q_emb], n_results=n, where=where)
+        )
         if where is not None and not (res.get("ids") and res["ids"][0]):
             log.info("rag.filter_fallback", attack_type=str(attack_type))
-            res = col.query(query_embeddings=[q_emb], n_results=n)
+            res = await asyncio.to_thread(
+                partial(col.query, query_embeddings=[q_emb], n_results=n)
+            )
 
         return self._to_techniques(res, k)
 

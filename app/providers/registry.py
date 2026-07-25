@@ -49,6 +49,15 @@ class ProviderRegistry:
         """The registry's own provider for a tier, ignoring overrides."""
         return self._providers[tier]
 
+    def set_provider(self, tier: ProviderTier, provider: LLMProvider) -> None:
+        """Permanently replace a tier's provider (offline mode installs here).
+
+        Distinct from :meth:`override`, which is contextvar-scoped and must stay
+        that way so a benchmark cannot change what live traffic is served by.
+        This one is a process-lifetime swap made once at startup.
+        """
+        self._providers[tier] = provider
+
     @contextmanager
     def override(self, tier: ProviderTier, provider: LLMProvider) -> Iterator[None]:
         current = _overrides.get() or {}

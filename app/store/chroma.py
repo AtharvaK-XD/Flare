@@ -54,6 +54,40 @@ async def collection_stats() -> dict[str, Any]:
     return await asyncio.to_thread(_collection_stats_sync)
 
 
+def _close_client_sync() -> None:
+    client = _client
+    if client is None:
+        return
+    # chromadb's PersistentClient owns a sqlite3 connection. Dropping the
+    # reference without releasing it leaves the connection to be closed by the
+    # GC at an arbitrary later moment, which surfaces as an "Exception ignored in
+    # Connection.__del__" from wherever the collection happened to happen.
+    for method in ("reset", "clear_system_cache"):
+        closer = getattr(client, method, None)
+        if closer is None:
+            continue
+        try:
+            closer()
+            return
+        except Exception:  # noqa: BLE001 — best effort on the way out
+            continue
+
+
+async def close_client() -> None:
+    """Release the Chroma client's resources on shutdown. Never raises."""
+    global _client
+    if _client is None:
+        return
+    try:
+        await asyncio.to_thread(_close_client_sync)
+    except Exception as exc:  # noqa: BLE001 — shutdown must not fail on cleanup
+        from app.core.logging import get_logger
+
+        get_logger(__name__).warning("chroma.close_failed", error=str(exc))
+    finally:
+        _client = None
+
+
 def reset_client() -> None:
     """Drop the cached client (mainly for tests)."""
     global _client

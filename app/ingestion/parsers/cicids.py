@@ -23,22 +23,40 @@ BENIGN_SAMPLE_EVERY = 10
 _LOGGED_UNKNOWN: set[str] = set()
 
 
+#: Label suffixes the "improved"/re-flowed CICIDS2017 distributions append to
+#: mark a flow that matched an attack pattern but did not complete
+#: (e.g. "Botnet - Attempted"). The attack CLASS is unchanged, so the suffix is
+#: stripped before mapping rather than falling through to `unknown`.
+_ATTEMPTED_SUFFIXES = (" - attempted", " – attempted", " attempted")
+
+
 def _map_label(label: str) -> str:
+    """Canonical class for a raw CICIDS label, across distribution spellings.
+
+    Handles the original ISCX spellings ("Bot", "Web Attack - Brute Force") AND
+    the re-flowed variants shipped by later redistributions ("Botnet",
+    "Botnet - Attempted", "Portscan"). Anything unmapped is logged ONCE and
+    excluded from evaluation rather than silently scored against a guess.
+    """
     key = label.strip()
     low = key.lower()
+    for suffix in _ATTEMPTED_SUFFIXES:
+        if low.endswith(suffix):
+            low = low[: -len(suffix)].strip()
+            break
     if low == "benign":
         return "benign"
-    if low == "portscan":
+    if low in ("portscan", "port scan", "port_scan"):
         return "port_scan"
     if low.startswith("ddos") or low.startswith("dos"):
         return "ddos"
-    if key in ("FTP-Patator", "SSH-Patator") or low.endswith("-patator"):
+    if low.endswith("-patator") or low in ("ftp-bruteforce", "ssh-bruteforce", "brute force"):
         return "brute_force"
-    if low.startswith("web attack"):
+    if low.startswith("web attack") or low.startswith("webattack"):
         return "web_attack"
-    if low == "bot":
+    if low in ("bot", "botnet", "bot-attack"):
         return "malware_c2"
-    if low == "infiltration":
+    if low.startswith("infiltration"):
         return "data_exfiltration"
     if low == "heartbleed":
         return "web_attack"

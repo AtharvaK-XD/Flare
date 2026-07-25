@@ -11,6 +11,7 @@ import asyncio
 import hashlib
 import time
 from datetime import UTC, datetime
+from functools import partial
 from typing import Any
 
 from app.config import get_settings
@@ -62,8 +63,15 @@ def _embed_all(texts: list[str]) -> list[list[float]]:
 
 
 async def build_index(force: bool = False, collection: Any = None) -> dict[str, Any]:
+    """Build/refresh the index. Every chromadb and file call goes to a thread.
+
+    chromadb's client and the corpus reader are both synchronous; run bare in a
+    coroutine they block the loop for the whole index build (tens of seconds on
+    a cold embedding model), which stalls the API if this is ever triggered from
+    a running app rather than the CLI.
+    """
     t0 = time.perf_counter()
-    docs = load_corpus()
+    docs = await asyncio.to_thread(load_corpus)
     chunks = chunk_corpus(docs)
     chash = corpus_hash(chunks)
     expected = len(chunks)
@@ -71,9 +79,10 @@ async def build_index(force: bool = False, collection: Any = None) -> dict[str, 
     col = collection or await _get_default_collection()
 
     meta = dict(col.metadata or {})
-    if not force and col.count() == expected and meta.get("corpus_hash") == chash:
-        log.info("rag.index_skip", reason="up-to-date", documents=expected)
-        return index_stats(col)
+    if not force and await asyncio.to_thread(col.count) == expected:
+        if meta.get("corpus_hash") == chash:
+            log.info("rag.index_skip", reason="up-to-date", documents=expected)
+            return await asyncio.to_thread(index_stats, col)
 
     ids = [c.id for c in chunks]
     texts = [c.embed_text for c in chunks]
@@ -82,14 +91,19 @@ async def build_index(force: bool = False, collection: Any = None) -> dict[str, 
     embeddings = await asyncio.to_thread(_embed_all, texts)
 
     built_at = datetime.now(UTC).isoformat()
-    col.upsert(ids=ids, embeddings=embeddings, documents=texts, metadatas=metadatas)
-    col.modify(
-        metadata={
-            "corpus_hash": chash,
-            "built_at": built_at,
-            "model": get_settings().embedding_model,
-            "techniques": len(docs),
-        }
+    await asyncio.to_thread(
+        partial(col.upsert, ids=ids, embeddings=embeddings, documents=texts, metadatas=metadatas)
+    )
+    await asyncio.to_thread(
+        partial(
+            col.modify,
+            metadata={
+                "corpus_hash": chash,
+                "built_at": built_at,
+                "model": get_settings().embedding_model,
+                "techniques": len(docs),
+            },
+        )
     )
 
     elapsed = time.perf_counter() - t0
@@ -100,7 +114,7 @@ async def build_index(force: bool = False, collection: Any = None) -> dict[str, 
         elapsed_s=round(elapsed, 1),
     )
     return {
-        "documents": col.count(),
+        "documents": await asyncio.to_thread(col.count),
         "techniques": len(docs),
         "model": get_settings().embedding_model,
         "built_at": built_at,

@@ -8,8 +8,12 @@ from datetime import UTC, datetime
 _TZ_COMPACT = re.compile(r"([+-]\d{2})(\d{2})$")
 
 _CICIDS_TS_FORMATS = (
+    # Fractional-second variants first: CICFlowMeter emits them, and
+    # "%d/%m/%Y %H:%M:%S" would reject the whole string rather than truncate.
+    "%d/%m/%Y %H:%M:%S.%f",
     "%d/%m/%Y %H:%M:%S",
     "%d/%m/%Y %H:%M",
+    "%m/%d/%Y %H:%M:%S.%f",
     "%m/%d/%Y %H:%M:%S",
     "%m/%d/%Y %H:%M",
     "%Y-%m-%d %H:%M:%S",

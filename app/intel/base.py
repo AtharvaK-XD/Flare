@@ -17,7 +17,7 @@ from app.api.errors import ProviderError, RateLimitedError
 from app.core.logging import get_logger
 from app.core.ratelimit import TokenBucket
 from app.core.retry import http_status_of, with_retry
-from app.intel.models import IndicatorType, SourceVerdict
+from app.intel.models import SourceVerdict
 from app.providers.base import ProviderHealth
 
 log = get_logger(__name__)
@@ -49,7 +49,14 @@ def intel_retryable(exc: BaseException) -> bool:
 
 
 class HttpIntelClient:
-    """Shared HTTP plumbing: one limiter acquire per call, 5xx retried."""
+    """Shared HTTP plumbing: one limiter acquire per call, 5xx retried.
+
+    OWNERSHIP: a client passed in belongs to the caller (tests, respx) and is
+    never closed here; one built here is owned here and IS closed by
+    :meth:`aclose`. Without that distinction shutdown either leaks a connection
+    pool ("Unclosed client session" on the way out) or closes a transport a test
+    still needs.
+    """
 
     base_url: str = ""
 
@@ -64,11 +71,17 @@ class HttpIntelClient:
         self._name = name
         self._limiter = limiter
         self._headers = headers or {}
+        self._owns_client = client is None
         self._client = client or httpx.AsyncClient(timeout=timeout)
 
     @property
     def name(self) -> str:
         return self._name
+
+    async def aclose(self) -> None:
+        """Release the connection pool if this client built it. Idempotent."""
+        if self._owns_client and not self._client.is_closed:
+            await self._client.aclose()
 
     async def _get(self, url: str, params: dict[str, Any] | None = None) -> httpx.Response:
         """One limiter token per logical call; 5xx/network retried, then raised."""
@@ -117,7 +130,3 @@ class HttpIntelClient:
 
     async def health(self) -> ProviderHealth:  # pragma: no cover - overridden
         raise NotImplementedError
-
-
-def _supported(itype: IndicatorType, supports: set[str]) -> bool:
-    return itype in supports

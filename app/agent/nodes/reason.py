@@ -19,7 +19,14 @@ from app.schemas import IocVerdict, MitreTechnique, ProviderTier
 
 log = get_logger(__name__)
 
-_MAX_TOKENS = 800
+#: Same thinking-budget rule as classify.py: the quality tier is a REASONING
+#: model, so the output allowance is spent on hidden reasoning tokens before a
+#: single narrative token is emitted. At 800 a long IOC/ATT&CK context could burn
+#: the entire budget thinking and return an empty narrative — which this node
+#: then correctly reports as "model returned an empty narrative", hiding the real
+#: cause. 2048 leaves room for ~400 tokens of prose after typical thinking
+#: overhead. RE-MEASURE AFTER ANY MODEL SWAP.
+_MAX_TOKENS = 2048
 _TEMPERATURE = 0.3
 
 _PROMPT = (Path(__file__).parent.parent / "prompts" / "reason.md").read_text(encoding="utf-8")

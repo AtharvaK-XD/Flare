@@ -177,28 +177,47 @@ class IocCache(Base):
     expires_at: Mapped[datetime] = mapped_column(UtcDateTime, index=True)
 
 
-class EvalRun(Base):
-    __tablename__ = "eval_runs"
+class RunRowMixin:
+    """The lifecycle columns every long-running job row carries.
+
+    Eval runs and benchmark runs are different reports over the same lifecycle:
+    opened ``running``, then ``completed`` or ``failed``, and reaped as failed if
+    the process dies (see ``app/evaluation/staleness.py``). Declaring that
+    lifecycle once means the staleness sweep can be written against ONE shape and
+    the two tables cannot drift apart in a way nothing would notice.
+
+    A mixin, not a mapped base: each table keeps its own independent columns and
+    the emitted DDL is unchanged, so no migration is required.
+    """
 
     id: Mapped[str] = mapped_column(String(36), primary_key=True, default=_uuid)
     status: Mapped[str] = mapped_column(String(16), default="running")
     sample_size: Mapped[int] = mapped_column(Integer, default=0)
     started_at: Mapped[datetime] = mapped_column(UtcDateTime, default=_utcnow)
     completed_at: Mapped[datetime | None] = mapped_column(UtcDateTime, nullable=True)
-    overall: Mapped[dict[str, Any] | None] = mapped_column(JSON, nullable=True)
-    per_class: Mapped[list[dict[str, Any]] | None] = mapped_column(JSON, nullable=True)
-    confusion_matrix: Mapped[dict[str, Any] | None] = mapped_column(JSON, nullable=True)
     error: Mapped[str | None] = mapped_column(Text, nullable=True)
 
 
-class BenchmarkRun(Base):
+class EvalRun(RunRowMixin, Base):
+    __tablename__ = "eval_runs"
+
+    overall: Mapped[dict[str, Any] | None] = mapped_column(JSON, nullable=True)
+    per_class: Mapped[list[dict[str, Any]] | None] = mapped_column(JSON, nullable=True)
+    confusion_matrix: Mapped[dict[str, Any] | None] = mapped_column(JSON, nullable=True)
+    # The columns above hold the SEVERITY target. Attack-type classification is a
+    # separate target with its own confusion matrix; a system can be good at one
+    # and bad at the other, so it is stored rather than dropped.
+    attack_type_metrics: Mapped[dict[str, Any] | None] = mapped_column(JSON, nullable=True)
+
+
+class BenchmarkRun(RunRowMixin, Base):
     __tablename__ = "benchmark_runs"
 
-    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=_uuid)
-    status: Mapped[str] = mapped_column(String(16), default="running")
-    sample_size: Mapped[int] = mapped_column(Integer, default=0)
-    started_at: Mapped[datetime] = mapped_column(UtcDateTime, default=_utcnow)
-    completed_at: Mapped[datetime | None] = mapped_column(UtcDateTime, nullable=True)
     results: Mapped[list[dict[str, Any]] | None] = mapped_column(JSON, nullable=True)
     agreement_rate: Mapped[float | None] = mapped_column(Float, nullable=True)
+    # The alerts the two tiers triaged differently — the evidence behind the
+    # agreement rate, useless as a bare number without them.
+    disagreement_examples: Mapped[list[dict[str, Any]] | None] = mapped_column(
+        JSON, nullable=True
+    )
     error: Mapped[str | None] = mapped_column(Text, nullable=True)

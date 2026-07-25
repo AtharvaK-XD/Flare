@@ -19,6 +19,7 @@ from typing import Any, TypeVar
 from app.api.errors import RateLimitedError
 from app.config import get_settings
 from app.core.logging import get_logger
+from app.core.metrics import percentile
 
 log = get_logger(__name__)
 
@@ -36,14 +37,6 @@ class _Waiter:
     future: asyncio.Future
     enqueued: float
     granted: bool = False
-
-
-def _percentile(samples: list[float], pct: float) -> float:
-    if not samples:
-        return 0.0
-    ordered = sorted(samples)
-    idx = min(len(ordered) - 1, int(round((pct / 100.0) * (len(ordered) - 1))))
-    return ordered[idx]
 
 
 class TokenBucket:
@@ -182,7 +175,10 @@ class TokenBucket:
             "waiting": len(self._waiters),
             "acquired_total": self._acquired_total,
             "rejected_total": self._rejected_total,
-            "wait_p95_ms": round(_percentile(list(self._wait_samples), 95), 2),
+            # One percentile implementation for the whole app (core.metrics):
+            # two copies is how the limiter panel and the benchmark panel end up
+            # quoting different p95s for the same samples.
+            "wait_p95_ms": round(percentile(list(self._wait_samples), 95), 2),
         }
 
 

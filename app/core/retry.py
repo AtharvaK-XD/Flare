@@ -35,7 +35,39 @@ def http_status_of(exc: BaseException) -> int | None:
     return status if isinstance(status, int) else None
 
 
+def is_rate_limit(exc: BaseException) -> bool:
+    """True when this exception is a 429 / quota-exhaustion from a provider.
+
+    Used to tell "the model is slow" apart from "the free tier made us wait",
+    which the benchmark must report separately — see ``throttled`` on
+    :class:`app.schemas.BenchmarkResult`.
+    """
+    if http_status_of(exc) == 429:
+        return True
+    name = type(exc).__name__.lower()
+    if "ratelimit" in name or "resourceexhausted" in name:
+        return True
+    text = str(exc).lower()
+    return "rate limit" in text or "429" in text or "quota" in text
+
+
+def is_permanent_quota_exhaustion(exc: BaseException) -> bool:
+    """True for a 429 that will NEVER succeed on retry: the quota limit is zero.
+
+    Google reports a model a free key may not call at all as a 429 whose quota
+    violation reads ``limit: 0``. That is a misconfiguration (wrong model id for
+    this key), not backpressure, so retrying it just burns the clock — the caller
+    must surface it instead. See ``ZERO_FREE_QUOTA_GEMINI_MODELS`` in config.py.
+    """
+    if http_status_of(exc) != 429:
+        return False
+    text = str(exc).lower()
+    return "limit: 0" in text or "limit:0" in text
+
+
 def default_retryable(exc: BaseException) -> bool:
+    if is_permanent_quota_exhaustion(exc):
+        return False
     if isinstance(exc, (ValidationError, ProviderError)):
         return False
     if isinstance(exc, (TimeoutError, asyncio.TimeoutError)):

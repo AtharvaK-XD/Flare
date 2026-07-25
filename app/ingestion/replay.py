@@ -28,6 +28,10 @@ OnAlert = Callable[[NormalizedAlert], Awaitable[None]]
 
 _STOP_TIMEOUT = 5.0
 
+#: Records pulled per worker-thread hop. Large enough that the hop is amortized,
+#: small enough that pause/stop still respond within one batch at demo rates.
+_READ_BATCH = 32
+
 DATASETS: dict[str, tuple[str, str, str]] = {
     "cicids2017": ("cicids2017_sample.csv", "cicids2017", "csv"),
     "cicids": ("cicids2017_sample.csv", "cicids2017", "csv"),
@@ -54,6 +58,10 @@ class ReplayEngine:
         self._limit: int | None = None
         self._emitted = 0
         self._cursor = 0
+        #: Records the parsers refused (malformed rows, unmapped sources, and
+        #: down-sampled benign flows). Surfaced on ``status()`` so "300 in, 180
+        #: out" is explainable rather than looking like lost alerts.
+        self._skipped = 0
         self._started_at: datetime | None = None
 
 
@@ -77,6 +85,7 @@ class ReplayEngine:
         self._limit = limit
         self._emitted = 0
         self._cursor = 0
+        self._skipped = 0
         self._stopped = False
         self._resume.set()
         self._started_at = datetime.now(UTC)
@@ -108,6 +117,7 @@ class ReplayEngine:
             self._task = None
         self._cursor = 0
         self._emitted = 0
+        self._skipped = 0
         self._state = ReplayState.IDLE
 
     def status(self) -> ReplayStatus:
@@ -119,6 +129,7 @@ class ReplayEngine:
             total=self._limit,
             queue_depth={},
             started_at=self._started_at,
+            skipped=self._skipped,
         )
 
 
@@ -141,50 +152,95 @@ class ReplayEngine:
                     if isinstance(rec, dict):
                         yield i, rec
             else:
+                malformed = 0
                 for i, line in enumerate(fh):
                     line = line.strip()
                     if not line:
                         continue
                     try:
                         rec = json.loads(line)
-                    except json.JSONDecodeError:
+                    except json.JSONDecodeError as exc:
+                        # One corrupt line must not end the replay, but it must
+                        # not vanish either: count it and name the first one.
+                        malformed += 1
+                        if malformed == 1:
+                            log.warning("replay.malformed_json", line_number=i + 1, error=str(exc))
+                        self._skipped += 1
                         continue
                     if isinstance(rec, dict):
                         yield i, rec
+                if malformed:
+                    log.warning(
+                        "replay.malformed_json_total",
+                        lines=malformed,
+                        path=str(self._path),
+                    )
+
+    @staticmethod
+    def _take(source: Iterator[tuple[int, dict]], size: int) -> list[tuple[int, dict]]:
+        """Pull up to ``size`` records. Runs in a worker thread — see ``_run``."""
+        batch: list[tuple[int, dict]] = []
+        for record in source:
+            batch.append(record)
+            if len(batch) >= size:
+                break
+        return batch
 
     async def _run(self) -> None:
+        """Emit records at the configured rate, never blocking the event loop.
+
+        The record iterators are synchronous file readers: advancing one from a
+        coroutine does disk I/O on the loop thread, which stalls every other
+        alert, the SSE heartbeat and the API for the duration of the read. They
+        are advanced in a worker thread instead, a batch at a time — one thread
+        hop per record would cost more than the read it avoids.
+        """
         assert self._source is not None
         interval = 1.0 / self._eps if self._eps > 0 else 0.0
         next_target = monotonic()
+        records = self._iter_records()
         try:
-            for index, raw in self._iter_records():
-                if self._stopped:
-                    break
-                await self._resume.wait()
-                if self._stopped:
+            while not self._stopped:
+                batch = await asyncio.to_thread(self._take, records, _READ_BATCH)
+                if not batch:
                     break
 
-                alert = normalize(raw, self._source, index)
-                self._cursor = index + 1
-                if alert is None:
-                    continue
+                for index, raw in batch:
+                    if self._stopped:
+                        break
+                    await self._resume.wait()
+                    if self._stopped:
+                        break
 
-                await self._on_alert(alert)
-                self._emitted += 1
-                if self._limit is not None and self._emitted >= self._limit:
-                    break
+                    alert = normalize(raw, self._source, index)
+                    self._cursor = index + 1
+                    if alert is None:
+                        # A record the parsers refused: malformed, unmapped, or
+                        # a down-sampled benign flow. Counted and skipped so a
+                        # bad row in the middle of a dataset cannot end a replay.
+                        self._skipped += 1
+                        continue
 
-                if interval > 0:
-                    next_target += interval
-                    delay = next_target - monotonic()
-                    if delay > 0:
-                        await asyncio.sleep(delay)
-                    else:
-                        next_target = monotonic()
+                    await self._on_alert(alert)
+                    self._emitted += 1
+                    if self._limit is not None and self._emitted >= self._limit:
+                        return
+
+                    if interval > 0:
+                        next_target += interval
+                        delay = next_target - monotonic()
+                        if delay > 0:
+                            await asyncio.sleep(delay)
+                        else:
+                            next_target = monotonic()
         except asyncio.CancelledError:
             raise
-        except Exception as exc:  # noqa: BLE001
-            log.warning("replay.run_failed", error=str(exc))
+        except Exception as exc:  # noqa: BLE001 — a replay fault must not kill the app
+            log.warning(
+                "replay.run_failed", error=str(exc), emitted=self._emitted, cursor=self._cursor
+            )
         finally:
+            if self._skipped:
+                log.info("replay.records_skipped", skipped=self._skipped, emitted=self._emitted)
             if not self._stopped:
                 self._state = ReplayState.COMPLETED

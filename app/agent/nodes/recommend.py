@@ -31,7 +31,13 @@ from app.schemas import (
 
 log = get_logger(__name__)
 
-_MAX_TOKENS = 800
+#: Thinking budget + structured output, the tightest of the three nodes: this one
+#: must emit a whole Remediation object (summary, 3-5 steps with detail text, and
+#: technique ids) AFTER the quality tier's hidden reasoning tokens. Truncation
+#: here surfaces as "could not extract JSON" from parsing.py, i.e. it looks like a
+#: parser fault rather than an exhausted allowance. See classify.py's note.
+#: RE-MEASURE AFTER ANY MODEL SWAP.
+_MAX_TOKENS = 2048
 _TEMPERATURE = 0.2
 
 _PROMPT = (Path(__file__).parent.parent / "prompts" / "recommend.md").read_text(encoding="utf-8")

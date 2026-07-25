@@ -11,15 +11,21 @@ from app.api.errors import FlareError, ProviderError, RateLimitedError
 from app.config import get_settings
 from app.core.logging import get_logger
 from app.core.metrics import metrics
-from app.core.retry import http_status_of, with_retry
+from app.core.retry import http_status_of, is_rate_limit, with_retry
 from app.providers.base import CompletionResult, ProviderHealth
 from app.providers.parsing import build_schema_instruction, coerce_to_model, extract_json_meta
 from app.schemas import ProviderTier
 
 log = get_logger(__name__)
 
-DEFAULT_TIMEOUT = 10.0
+#: gpt-oss-120b is a reasoning model — it thinks before emitting, so a
+#: first-token deadline sized for llama-3.1-8b-instant times it out under load.
+DEFAULT_TIMEOUT = 30.0
 ATTEMPTS = 3
+
+#: Fallback when GROQ_FAST_MODEL is unset. Confirmed against Groq's live
+#: /openai/v1/models listing — do not edit from memory, slugs change.
+DEFAULT_FAST_MODEL = "openai/gpt-oss-120b"
 
 
 class GroqProvider:
@@ -28,9 +34,13 @@ class GroqProvider:
     def __init__(self, client: Any | None = None) -> None:
         settings = get_settings()
         self._api_key = settings.groq_api_key
-        self._fast_model = settings.groq_fast_model
+        self._fast_model = settings.groq_fast_model or DEFAULT_FAST_MODEL
         self._quality_model = settings.groq_quality_model
         self._client = client
+        #: Set when a call was retried because of a 429/TPM throttle. The
+        #: benchmark reads this to flag a throttled tier rather than publishing
+        #: free-tier queueing as the model's real latency.
+        self.throttled = False
 
     @property
     def name(self) -> str:
@@ -52,6 +62,14 @@ class GroqProvider:
 
             self._client = AsyncGroq(api_key=self._api_key)
         return self._client
+
+    def _on_retry(self, model: str, node: str, exc: BaseException) -> None:
+        """Count the retry, and remember whether the free tier throttled us."""
+        throttled = is_rate_limit(exc)
+        if throttled:
+            self.throttled = True
+            log.info("groq.throttled", model=model, node=node)
+        metrics.record_retry(self.name, model, node, rate_limited=throttled)
 
     def _map_error(self, exc: BaseException, attempts: int) -> FlareError:
         status = http_status_of(exc)
@@ -98,7 +116,7 @@ class GroqProvider:
             attempts=ATTEMPTS,
             base_delay=0.5,
             provider=self.name,
-            on_retry=lambda a, d, e: metrics.record_retry(self.name, use_model, node),
+            on_retry=lambda a, d, e: self._on_retry(use_model, node, e),
         )
         async def _call() -> Any:
             return await client.chat.completions.create(

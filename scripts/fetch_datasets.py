@@ -1,24 +1,45 @@
 """Download-only dataset fetcher for Flare.
 
 Downloads a CICIDS2017 subset (CSV) and a Suricata EVE JSON sample into
-DATASET_PATH. NO parsing. If a source is unreachable, writes a small
-structurally-valid placeholder and logs clearly that it is a placeholder.
+DATASET_PATH. NO parsing.
+
+FALLBACK ORDER, and why it matters for a cold clone
+---------------------------------------------------
+When a source is unreachable the CICIDS replay sample falls back to the
+COMMITTED labeled subset (``data/labels/cicids2017_labeled_subset.csv``, 450 real
+labeled flows) before it falls back to a two-row placeholder. That ordering is
+the difference between a cold clone demoing on 450 alerts and demoing on two:
+the old behaviour wrote the placeholder unconditionally, and since the configured
+CICIDS URL had never actually existed, EVERY cold clone got the two-row file and
+a replay that ended instantly.
+
+The placeholder remains as the last resort so ``make bootstrap`` still completes
+on a machine with neither network nor a label set.
 """
 
 from __future__ import annotations
 
 import json
 import os
+import shutil
 import sys
 from pathlib import Path
 
 import httpx
 
 DATASET_PATH = Path(os.getenv("DATASET_PATH", "./data/datasets"))
+GROUND_TRUTH_PATH = Path(os.getenv("GROUND_TRUTH_PATH", "./data/labels"))
+
+#: The committed labeled subset, which is also a perfectly good replay dataset:
+#: same parser, same columns, real labels. Built by scripts/build_label_set.py.
+LABELED_SUBSET = "cicids2017_labeled_subset.csv"
 
 SOURCES = [
     (
         "cicids2017_sample.csv",
+        # Deliberately unreachable: there is no public single-file CICIDS2017 CSV
+        # that is stable enough to hard-code. The labeled-subset fallback below
+        # is the supported path — see scripts/build_label_set.py.
         "https://raw.githubusercontent.com/flare-nonexistent/cicids2017/master/sample.csv",
         "csv",
     ),
@@ -85,6 +106,14 @@ def eve_placeholder() -> bytes:
 PLACEHOLDERS = {"csv": csv_placeholder, "eve": eve_placeholder}
 
 
+def local_fallback(kind: str) -> Path | None:
+    """A real local dataset to use instead of a placeholder, if one exists."""
+    if kind != "csv":
+        return None
+    candidate = GROUND_TRUTH_PATH / LABELED_SUBSET
+    return candidate if candidate.exists() else None
+
+
 def fetch_one(name: str, url: str, kind: str) -> None:
     dest = DATASET_PATH / name
     try:
@@ -97,10 +126,27 @@ def fetch_one(name: str, url: str, kind: str) -> None:
         validate(kind, data)
         dest.write_bytes(data)
         log(f"OK downloaded {name} ({len(data)} bytes) from {url}")
-    except Exception as exc:  # noqa: BLE001
-        data = PLACEHOLDERS[kind]()
-        dest.write_bytes(data)
-        log(f"PLACEHOLDER wrote {name} ({len(data)} bytes) — source unreachable: {exc}")
+        return
+    except Exception as exc:  # noqa: BLE001 — fall back rather than fail the bootstrap
+        reason = exc
+
+    fallback = local_fallback(kind)
+    if fallback is not None:
+        shutil.copyfile(fallback, dest)
+        rows = max(0, sum(1 for _ in fallback.open(encoding="utf-8")) - 1)
+        log(
+            f"LOCAL   {name} <- {fallback} ({rows} labeled rows) "
+            f"— download unavailable ({reason})"
+        )
+        return
+
+    data = PLACEHOLDERS[kind]()
+    dest.write_bytes(data)
+    log(
+        f"PLACEHOLDER wrote {name} ({len(data)} bytes) — no download and no labeled "
+        f"subset at {GROUND_TRUTH_PATH / LABELED_SUBSET}. The replay demo will have "
+        f"almost no data; run `python -m scripts.build_label_set`. ({reason})"
+    )
 
 
 def main() -> int:

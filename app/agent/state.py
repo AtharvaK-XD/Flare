@@ -106,17 +106,37 @@ def provider_for(state: TriageState, tier: ProviderTier) -> LLMProvider:
     return registry.get(ProviderTier(mapped))
 
 
+#: Process-wide default retriever. ``None`` means "build the live Chroma-backed
+#: one lazily". Offline mode installs a corpus-backed retriever here rather than
+#: adding an `if offline:` branch to the retrieve node.
+_default_retriever: Any = None
+
+
+def set_default_retriever(retriever: Any) -> None:
+    """Replace the process-wide retriever (offline mode; tests)."""
+    global _default_retriever
+    _default_retriever = retriever
+
+
 def retriever_for(state: TriageState) -> MitreRetriever:
     cfg = config_of(state)
     retriever = cfg.get("retriever")
     if retriever is not None:
         return retriever
+    if _default_retriever is not None:
+        return _default_retriever
     from app.rag.retriever import MitreRetriever
 
     return MitreRetriever()
 
 
 _default_aggregator_singleton: IntelAggregator | None = None
+
+
+def set_default_aggregator(aggregator: Any) -> None:
+    """Replace the process-wide intel aggregator (offline mode; tests)."""
+    global _default_aggregator_singleton
+    _default_aggregator_singleton = aggregator
 
 
 def aggregator_for(state: TriageState) -> IntelAggregator:
@@ -130,6 +150,20 @@ def aggregator_for(state: TriageState) -> IntelAggregator:
 def get_default_aggregator() -> IntelAggregator:
     """The process-wide live aggregator (shared by the graph and /health/deep)."""
     return _build_default_aggregator()
+
+
+async def close_default_aggregator() -> None:
+    """Close the live aggregator's HTTP pools and drop the singleton.
+
+    Called from the app lifespan. The aggregator is built lazily, so on a run
+    that never touched intel there is nothing to close and this is a no-op —
+    which is exactly why it must not build one just to close it.
+    """
+    global _default_aggregator_singleton
+    aggregator = _default_aggregator_singleton
+    _default_aggregator_singleton = None
+    if aggregator is not None:
+        await aggregator.aclose()
 
 
 def _build_default_aggregator() -> IntelAggregator:
@@ -170,9 +204,13 @@ __all__ = [
     "PIPELINE_NODES",
     "SEVERITY_RANK",
     "severity_rank",
+    "close_default_aggregator",
     "config_of",
     "config_flag",
+    "get_default_aggregator",
     "provider_for",
     "retriever_for",
     "aggregator_for",
+    "set_default_aggregator",
+    "set_default_retriever",
 ]

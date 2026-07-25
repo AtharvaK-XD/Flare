@@ -19,6 +19,7 @@ from typing import Any
 from fastapi import APIRouter
 from sqlalchemy import text
 
+from app.config import get_settings
 from app.core.logging import get_logger
 from app.deps import SessionDep, WorkerManagerDep
 from app.providers.base import HealthStatus, ProviderHealth
@@ -191,6 +192,16 @@ async def health_deep(session: SessionDep, workers: WorkerManagerDep) -> DeepHea
             services.update(outcome)
         else:
             services[name] = outcome
+
+    # Offline mode answers under the stand-ins' own names ("offline",
+    # "offline-intel"). The contract still requires the four real service keys,
+    # and leaving them to the "no status reported" fallback would paint the
+    # status strip with four degraded services that are not even in use — the
+    # opposite of what is true. Report them as ok, with the reason.
+    if get_settings().offline_mode:
+        note = "served by the offline stand-in (OFFLINE_MODE=true)"
+        for required in (*_PROVIDER_SERVICES, *_INTEL_SERVICES):
+            services[required] = ServiceHealth(status="ok", note=note)
 
     # Guarantee every contract-mandated key is present even if a check invented none.
     for required in (*_PROVIDER_SERVICES, *_INTEL_SERVICES, "chroma", "database"):

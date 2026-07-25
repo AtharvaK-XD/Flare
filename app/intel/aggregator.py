@@ -164,6 +164,21 @@ class IntelAggregator:
         return [by_key[item] for item in indicators]
 
 
+    async def aclose(self) -> None:
+        """Close every source that owns a connection pool. Never raises.
+
+        Shutdown must not be able to fail: one source with a wedged transport
+        would otherwise leave the others open AND surface as a shutdown error.
+        """
+        for source in self.sources:
+            closer = getattr(source, "aclose", None)
+            if closer is None:
+                continue
+            try:
+                await closer()
+            except Exception as exc:  # noqa: BLE001 — best effort, on the way out
+                log.warning("intel.close_failed", source=source.name, error=str(exc))
+
     def metrics(self) -> dict[str, Any]:
         return {name: m.as_dict() for name, m in self._metrics.items()}
 
