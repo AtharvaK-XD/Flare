@@ -43,9 +43,6 @@ _TID_RE = re.compile(r"T\d{4}(?:\.\d{3})?")
 _BAD_IPS = {"45.13.2.99", "185.220.101.7", "91.219.236.4", "193.27.228.7"}
 
 
-# --------------------------------------------------------------------------- stubs
-
-
 def _classify(prompt: str) -> ClassificationResult:
     # Only inspect the appended alert block, never the static instructions.
     p = prompt.split("Alert to classify:")[-1].lower()
@@ -191,9 +188,6 @@ class CorpusRetriever:
         return out
 
 
-# --------------------------------------------------------------------------- alerts
-
-
 # (signature, src_ip, dst_ip, dst_port, protocol)
 _ROWS: list[tuple[str, str, str, int | None, str]] = [
     ("Outbound DNS to public resolver", "10.0.4.12", "8.8.8.8", 53, "UDP"),
@@ -236,9 +230,6 @@ def _alert(
 
 def _alerts() -> list[NormalizedAlert]:
     return [_alert(*row) for row in _ROWS]
-
-
-# --------------------------------------------------------------------------- run
 
 
 def _fmt_trace(state: TriageState) -> str:

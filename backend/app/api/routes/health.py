@@ -84,9 +84,6 @@ def _from_provider_health(health: ProviderHealth, *, want_quota: bool) -> Servic
     )
 
 
-# --------------------------------------------------------------------------- checks
-
-
 async def _check_llm_providers() -> dict[str, ServiceHealth]:
     from app.providers.registry import get_registry
 
@@ -156,9 +153,6 @@ async def _guard(
 
 def _degraded(note: str) -> ServiceHealth:
     return ServiceHealth(status="degraded", note=note)
-
-
-# --------------------------------------------------------------------------- routes
 
 
 @router.get("/health")

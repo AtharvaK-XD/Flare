@@ -34,9 +34,6 @@ from app.schemas import (
 pytestmark = pytest.mark.asyncio
 
 
-# --------------------------------------------------------------------------- fakes
-
-
 class FakeProvider:
     def __init__(
         self,
@@ -130,9 +127,6 @@ class FakeRetriever:
         return self._t
 
 
-# --------------------------------------------------------------------------- helpers
-
-
 def _alert(iocs: list[str] | None = None) -> NormalizedAlert:
     return NormalizedAlert(
         id="alert-1",
@@ -175,9 +169,6 @@ def _state(**kw: Any) -> dict[str, Any]:
     return base
 
 
-# --------------------------------------------------------------------------- classify
-
-
 async def test_classify_success() -> None:
     parsed = ClassificationResult(
         severity=Severity.CRITICAL,
@@ -210,9 +201,6 @@ async def test_classify_failure_defaults_medium_never_critical() -> None:
     assert result["status"] == AlertStatus.CLASSIFIED
     assert any("classify" in e for e in result["errors"])
     assert result["trace"][0].status == "failed"
-
-
-# --------------------------------------------------------------------------- enrich
 
 
 async def test_enrich_escalates_medium_to_high_and_traces_it() -> None:
@@ -286,9 +274,6 @@ async def test_enrich_aggregator_failure_degrades_with_error() -> None:
     assert result["trace"][0].status == "failed"
 
 
-# --------------------------------------------------------------------------- retrieve
-
-
 async def test_retrieve_returns_techniques() -> None:
     retriever = FakeRetriever([_tech("T1110"), _tech("T1078")])
     state = _state(attack_type=AttackType.BRUTE_FORCE, config={"retriever": retriever})
@@ -319,9 +304,6 @@ async def test_retrieve_failure_degrades() -> None:
     assert result["techniques"] == []
     assert any("retrieve" in e for e in result["errors"])
     assert result["trace"][0].status == "failed"
-
-
-# --------------------------------------------------------------------------- reason
 
 
 async def test_reason_quality_success() -> None:
@@ -375,9 +357,6 @@ async def test_reason_both_tiers_fail() -> None:
     assert result["reasoning"] is None
     assert any("reason" in e for e in result["errors"])
     assert result["trace"][0].status == "failed"
-
-
-# --------------------------------------------------------------------------- recommend
 
 
 async def test_recommend_drops_hallucinated_techniques_and_renumbers() -> None:

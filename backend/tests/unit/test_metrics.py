@@ -17,7 +17,6 @@ from app.evaluation.metrics import (
     to_contract,
 )
 
-# --------------------------------------------------------------------------- fixture
 # A known 3x3 case. rows = TRUE, columns = PREDICTED:
 #
 #            pred a  pred b  pred c   | support
@@ -101,9 +100,6 @@ def test_macro_weighted_and_micro_averages() -> None:
     assert report.micro.f1 == pytest.approx(report.accuracy)
 
 
-# --------------------------------------------------------------------------- extremes
-
-
 def test_perfect_predictions_score_one() -> None:
     y = ["a", "b", "c", "a", "b", "c"]
     report = precision_recall_f1(y, list(y), ["a", "b", "c"])
@@ -125,9 +121,6 @@ def test_all_wrong_predictions_score_zero() -> None:
     assert report.macro.f1 == 0.0
     assert report.weighted.f1 == 0.0
     assert report.accuracy == 0.0
-
-
-# --------------------------------------------------------------------- zero-division
 
 
 def test_class_with_no_predictions_gets_precision_zero_not_one() -> None:
@@ -210,9 +203,6 @@ def test_empty_input_is_all_zero_not_a_crash() -> None:
     assert [c.support for c in report.per_class] == [0, 0]
 
 
-# ------------------------------------------------------------------------ guardrails
-
-
 def test_values_outside_labels_are_rejected_not_dropped() -> None:
     with pytest.raises(ValueError, match="silently dropped"):
         confusion_matrix(["a", "zzz"], ["a", "a"], ["a"])
@@ -241,9 +231,6 @@ def test_observed_labels_keeps_canonical_order_and_drops_unseen() -> None:
     ]
     with pytest.raises(ValueError, match="canonical"):
         observed_labels(["nope"], ["nope"], canonical)
-
-
-# ------------------------------------------------------------------------- contract
 
 
 def test_to_contract_emits_exact_section_5_shapes() -> None:

@@ -2,8 +2,8 @@
 
 Isolation contract (load-bearing): this module imports NO db, NO event bus, NO
 queue, and NO FastAPI. It takes a ``NormalizedAlert`` and returns a
-``TriageState``. That is what lets Phase 9 wire workers around it and Phase 11
-replay eval traffic through the identical code path without a rewrite.
+``TriageState``. That is what lets the workers wrap it and the eval harness
+replay traffic through the identical code path without a rewrite.
 
 The graph is compiled once (``build_graph`` memoizes) and reused for every alert.
 There is deliberately no checkpointer — triage is stateless per alert — but the

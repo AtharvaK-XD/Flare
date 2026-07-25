@@ -124,7 +124,7 @@ def _alert_context(prompt: str) -> str:
     """The alert block the node appended, never the static instructions.
 
     Matching against the whole prompt would let the prompt's own examples decide
-    the classification — the same trap the Phase 8 demo stubs documented.
+    the classification — the same trap the demo stubs documented.
     """
     for marker in ("Alert to classify:", "Alert under analysis:", "\n\nAlert:"):
         if marker in prompt:

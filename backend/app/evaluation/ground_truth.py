@@ -26,8 +26,8 @@ with a loud warning: there is no defensible expected value to score them against
 
 THE SILENT-FALLBACK BUG THIS MODULE NOW REFUSES TO REPEAT
 ---------------------------------------------------------
-``data/labels/`` was empty for the whole of Phase 11/12. :func:`_candidate_files`
-quietly fell back to the 6-row replay placeholder, and every eval since produced
+``data/labels/`` was empty for a long stretch. :func:`_candidate_files`
+quietly fell back to the 6-row replay placeholder, and every eval then produced
 a plausible-looking macro-F1 computed on SIX rows. Nothing failed; the number was
 simply meaningless. Two guards close that hole:
 
@@ -68,7 +68,6 @@ LOW_SUPPORT_THRESHOLD = 5
 #: Hard cap so a full 2.8M-row CICIDS export cannot exhaust memory.
 MAX_POPULATION_ROWS = 200_000
 
-# --------------------------------------------------------------------------- mappings
 # Keys are the canonical dataset labels produced by app.ingestion.parsers.cicids
 # (e.g. raw "Web Attack - Brute Force" -> "web_attack", "SSH-Patator" ->
 # "brute_force"). Normalizing raw CICIDS label spellings stays in the parser so

@@ -41,9 +41,6 @@ pytestmark = pytest.mark.asyncio
 SessionFactory = Callable[[], AbstractAsyncContextManager[AsyncSession]]
 
 
-# --------------------------------------------------------------------------- helpers
-
-
 @pytest_asyncio.fixture
 async def session_factory(tmp_path: Any) -> AsyncIterator[SessionFactory]:
     # A temp FILE db (WAL) so concurrent worker tasks each get their own
@@ -182,9 +179,6 @@ async def _until(cond: Callable[[], Any], timeout: float = 10.0) -> None:
         # so a tight loop steals write throughput from the workers under test.
         await asyncio.sleep(0.05)
     raise AssertionError(f"condition not met within {timeout}s")
-
-
-# --------------------------------------------------------------------------- tests
 
 
 async def test_200_alerts_none_lost_none_duplicated(session_factory: SessionFactory) -> None:

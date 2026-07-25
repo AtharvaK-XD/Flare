@@ -109,9 +109,6 @@ async def _run(
     )
 
 
-# ------------------------------------------------------------------------ persist
-
-
 async def test_completed_run_persists_the_contract_results_array(
     maker: async_sessionmaker[AsyncSession], sample: list[LabeledAlert]
 ) -> None:
@@ -238,9 +235,6 @@ async def test_run_uses_the_same_sampler_as_the_eval_harness() -> None:
     source = inspect.getsource(bench.run_benchmark)
     assert "gt.load(" in source  # ground_truth.load, not a private second sampler
     assert not hasattr(bench, "_sample")  # no rival sampler defined here
-
-
-# --------------------------------------------------------------------------- HTTP
 
 
 @pytest_asyncio.fixture

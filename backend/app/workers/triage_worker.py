@@ -53,18 +53,16 @@ async def process_triage(alert: NormalizedAlert, ctx: WorkerContext) -> None:
     alert_id = alert.id
     bind_request_context(alert_id=alert_id)
     try:
-        # 1. persist the raw alert (status=ingested)
         async with ctx.session_factory() as session:
             await ctx.repo.create(session, alert)
             await session.commit()
 
-        # 2. classify only — the fast path never drags enrichment along
+        # classify only — the fast path never drags enrichment along
         state = await ctx.classify_fn(alert, config=ctx.graph_config, stop_after="classify")
         severity = state.get("severity") or Severity.MEDIUM
         confidence = state.get("confidence") or 0.0
         attack_type = state.get("attack_type") or AttackType.UNKNOWN
 
-        # 3. persist classification + the classify trace, then publish alert.new
         async with ctx.session_factory() as session:
             await ctx.repo.update_classification(
                 session, alert_id, severity, confidence, attack_type
@@ -74,7 +72,6 @@ async def process_triage(alert: NormalizedAlert, ctx: WorkerContext) -> None:
             await session.commit()
         await _publish_summary(ctx, alert_id, new=True)
 
-        # 4. route: enrichment queue, or finalize now
         if route_after_classify(state) == "enrich":
             if not ctx.enrich_q.put(EnrichJob(state=state)):
                 # enrich_q saturated — don't strand the alert, finalize it

@@ -10,7 +10,7 @@ guard reads the DB — a row in ``status=running``.
 A run that dies with its process (Ctrl-C, OOM, a crash mid-eval) never gets to
 write ``completed`` or ``failed``. Its row stays ``running`` forever, and from
 then on EVERY POST /run 409s, permanently, with no way out but hand-editing the
-database. That is exactly what happened during Phase 11/12 testing.
+database. That is exactly what happened in testing.
 
 THE FIX
 -------

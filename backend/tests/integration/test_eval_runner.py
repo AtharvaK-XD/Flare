@@ -149,9 +149,6 @@ async def _fetch(maker: async_sessionmaker[AsyncSession], run_id: str) -> EvalRu
     return detail
 
 
-# --------------------------------------------------------------------- ground truth
-
-
 async def test_stratified_sample_contains_every_label(dataset: Path) -> None:
     sample = gt.load(20, path=dataset, seed=7)
 
@@ -206,9 +203,6 @@ async def test_sample_smaller_than_the_class_count_is_refused(dataset: Path) -> 
 async def test_missing_ground_truth_raises(tmp_path: Path) -> None:
     with pytest.raises(gt.GroundTruthError):
         gt.load_population(tmp_path / "nothing-here.csv")
-
-
-# -------------------------------------------------------------------------- runner
 
 
 async def test_runner_uses_the_production_graph_by_default() -> None:
@@ -445,9 +439,6 @@ async def test_partial_metrics_are_persisted_while_running(
     final = await task
     assert final.status == "completed"
     assert sum(c.support for c in final.per_class) == 20
-
-
-# ----------------------------------------------------------------------- HTTP layer
 
 
 @pytest_asyncio.fixture

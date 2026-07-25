@@ -69,8 +69,6 @@ class WorkerManager:
         self._degraded = False
         self._stopping = False
 
-    # -- lifecycle ---------------------------------------------------------
-
     def start(self) -> None:
         self._stopping = False
         self._degraded = False
@@ -89,11 +87,9 @@ class WorkerManager:
         """Graceful shutdown: drain, cancel idle tasks, await, verify no leaks."""
         self._stopping = True
 
-        # 1. let in-flight + queued work finish within the drain budget
         remaining_triage = await self.ctx.triage_q.drain(self._drain_timeout)
         remaining_enrich = await self.ctx.enrich_q.drain(self._drain_timeout)
 
-        # 2. cancel the (now mostly idle) tasks and await them
         all_tasks = [*self._tasks["triage"], *self._tasks["enrich"]]
         if self._stats_task is not None:
             all_tasks.append(self._stats_task)
@@ -101,7 +97,7 @@ class WorkerManager:
             task.cancel()
         await asyncio.gather(*all_tasks, return_exceptions=True)
 
-        # 3. let async-generator finalizers finish.
+        # Let async-generator finalizers finish.
         #
         # A worker cancelled INSIDE the graph's `astream(...)` runs the
         # generator's `aclose()` on the way out, and asyncio schedules that as a
@@ -151,8 +147,6 @@ class WorkerManager:
         if remaining:
             log.warning("workers.asyncgen_finalizers_pending", count=len(remaining))
 
-    # -- supervision -------------------------------------------------------
-
     async def _supervise(self, pool: str, factory: LoopFactory) -> None:
         while not self._stopping:
             try:
@@ -180,8 +174,6 @@ class WorkerManager:
         self._restart_totals[pool] += 1
         return len(window) <= self._restart_cap
 
-    # -- stats pulse -------------------------------------------------------
-
     async def _stats_publisher(self) -> None:
         while not self._stopping:
             try:
@@ -196,8 +188,6 @@ class WorkerManager:
                 self.ctx.bus.publish(StatsUpdatedEvent(data=stats))
             except Exception as exc:  # noqa: BLE001 — a stats hiccup must not crash the pool
                 log.warning("workers.stats_failed", error=str(exc))
-
-    # -- introspection -----------------------------------------------------
 
     @property
     def degraded(self) -> bool:

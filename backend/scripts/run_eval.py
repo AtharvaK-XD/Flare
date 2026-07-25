@@ -125,7 +125,7 @@ async def main() -> int:
 
     # Announce the label set BEFORE spending minutes of LLM quota on it. An eval
     # scored against a 6-row fallback is not worth running, and finding that out
-    # afterwards is how Phase 11/12 shipped meaningless numbers.
+    # afterwards is how meaningless numbers get shipped.
     health = check_label_health()
     _rule("GROUND TRUTH")
     print(health.message())

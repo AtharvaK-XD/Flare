@@ -53,9 +53,6 @@ from app.workers.queue import BoundedQueue
 pytestmark = pytest.mark.asyncio
 
 
-# --------------------------------------------------------------------------- fakes
-
-
 class FakeReplayEngine:
     """Mirrors ReplayEngine's public surface without touching a dataset."""
 
@@ -104,9 +101,6 @@ class FakeReplayEngine:
 class FakeWorkerManager:
     def stats(self) -> dict[str, Any]:
         return {"triage": {"active": 4, "restarts": 0}, "degraded": False}
-
-
-# --------------------------------------------------------------------------- fixtures
 
 
 @pytest_asyncio.fixture
@@ -246,9 +240,6 @@ async def client(ctx: dict[str, Any]) -> httpx.AsyncClient:
     return ctx["client"]
 
 
-# --------------------------------------------------------------------------- health
-
-
 async def test_health_is_liveness_only(client: httpx.AsyncClient) -> None:
     resp = await client.get("/api/v1/health")
     assert resp.status_code == 200
@@ -331,9 +322,6 @@ async def test_health_deep_survives_a_failing_check(
     assert body["services"]["groq"]["status"] == "degraded"
     assert body["services"]["virustotal"]["status"] == "degraded"  # timed out
     assert body["status"] == "degraded"
-
-
-# --------------------------------------------------------------------------- alerts
 
 
 async def test_alerts_list_shape_matches_contract(client: httpx.AsyncClient) -> None:
@@ -611,9 +599,6 @@ async def test_limit_over_max_is_422(client: httpx.AsyncClient) -> None:
     assert resp.json()["error"]["code"] == "validation_error"
 
 
-# --------------------------------------------------------------------------- ingest
-
-
 async def test_ingest_simplified_body_returns_202_and_enqueues(
     ctx: dict[str, Any],
 ) -> None:
@@ -680,9 +665,6 @@ async def test_ingest_when_queue_full_is_503_rate_limited(ctx: dict[str, Any]) -
     assert resp.json()["error"]["code"] == "rate_limited"
 
 
-# --------------------------------------------------------------------------- replay
-
-
 async def test_replay_status_shape_matches_contract(ctx: dict[str, Any]) -> None:
     ctx["triage_q"].put("a")
     ctx["enrich_q"].put("b")
@@ -705,7 +687,7 @@ async def test_replay_status_shape_matches_contract(ctx: dict[str, Any]) -> None
         "queue_depth",
         "started_at",
     }
-    additive_keys = {"skipped"}  # records the parsers refused (Phase 13)
+    additive_keys = {"skipped"}  # records the parsers refused
 
     assert contract_keys <= set(body), (
         f"replay status dropped contract key(s): {sorted(contract_keys - set(body))}"
@@ -765,9 +747,6 @@ async def test_start_while_running_is_409(client: httpx.AsyncClient) -> None:
     resp = await client.post("/api/v1/replay/start", json={})
     assert resp.status_code == 409
     assert "already running" in resp.json()["error"]["message"]
-
-
-# --------------------------------------------------------------------------- stream
 
 
 def _parse_sse(raw: str) -> list[dict[str, str]]:

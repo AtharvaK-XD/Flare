@@ -60,9 +60,6 @@ TERMINAL = {AlertStatus.DONE.value, AlertStatus.FAILED.value}
 DRAIN_BUDGET_SECONDS = 90.0
 
 
-# --------------------------------------------------------------------------- fixtures
-
-
 @pytest_asyncio.fixture
 async def file_db(tmp_path: Path) -> AsyncIterator[Any]:
     """A real on-disk SQLite DB with the production PRAGMAs.
@@ -184,9 +181,6 @@ async def _await_terminal(factory: Any, expected: int, budget: float) -> int:
             return done
         await asyncio.sleep(0.25)
     return done
-
-
-# --------------------------------------------------------------------------- §1 tests
 
 
 @pytest.mark.asyncio

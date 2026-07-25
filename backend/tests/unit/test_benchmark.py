@@ -37,9 +37,6 @@ def _marker(label: str) -> str:
     return f"[[{label}]]"
 
 
-# --------------------------------------------------------------------------- doubles
-
-
 class ScriptedProvider:
     """An LLM provider with scripted latency and scripted classifications.
 
@@ -177,9 +174,6 @@ def _registry(fast: Any, quality: Any) -> ProviderRegistry:
 
 
 SAMPLE_LABELS = ["benign", "port_scan", "ddos", "malware_c2", "benign", "port_scan"]
-
-
-# ------------------------------------------------------------------------- fairness
 
 
 async def test_both_tiers_receive_byte_identical_prompts() -> None:
@@ -333,9 +327,6 @@ async def test_percentiles_come_from_the_shared_helper() -> None:
     assert result.p50_latency_ms == round(percentile(runs[0].latencies, 50), 2)
 
 
-# ------------------------------------------------------------------------ agreement
-
-
 async def test_agreement_rate_and_disagreement_examples_on_a_hand_built_case() -> None:
     """6 alerts, tiers differ on exactly 2 => agreement 4/6."""
     sample = _sample(SAMPLE_LABELS)
@@ -438,9 +429,6 @@ async def test_agreement_is_none_when_nothing_was_comparable() -> None:
     assert examples == []
 
 
-# --------------------------------------------------------------------- isolation
-
-
 async def test_override_does_not_leak_into_a_concurrent_triage() -> None:
     """A benchmark must not change what concurrent live traffic is served by."""
     fast = ScriptedProvider("groq", "llama-fast", ProviderTier.FAST, sleep_ms=5.0)
@@ -487,9 +475,6 @@ async def test_override_is_restored_after_a_tier_finishes() -> None:
 
     assert registry.get(ProviderTier.FAST) is fast
     assert registry.get(ProviderTier.QUALITY) is quality
-
-
-# -------------------------------------------------------------------------- guards
 
 
 def test_sample_size_over_the_cap_is_refused_with_an_explanation() -> None:
@@ -573,9 +558,6 @@ async def test_result_row_matches_the_contract_shape() -> None:
     assert payload["avg_tokens"] == 120.0  # 100 in + 20 out
     assert payload["avg_tokens_in"] == 100.0
     assert payload["avg_tokens_out"] == 20.0
-
-
-# ------------------------------------------------------------------- throttling flag
 
 
 async def test_throttled_flag_is_false_on_a_clean_run() -> None:

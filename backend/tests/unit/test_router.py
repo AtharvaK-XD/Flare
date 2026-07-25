@@ -1,4 +1,4 @@
-"""Exhaustive routing-matrix test — the safety net for Phase 8.
+"""Exhaustive routing-matrix test — the safety net for the routing layer.
 
 Every branch of every router is covered by an independently-derived expectation
 (double-entry: the expected value is computed from the spec text, not from the
@@ -61,9 +61,7 @@ def _state(
     }
 
 
-# ---------------------------------------------------------------------------
 # route_after_classify — full matrix of severity x has_iocs x enrich_low_severity
-# ---------------------------------------------------------------------------
 
 
 def _expected_after_classify(sev: Severity, has_iocs: bool, els: bool) -> str:
@@ -100,9 +98,7 @@ def test_route_after_classify_low_with_iocs_needs_flag() -> None:
     assert r(False, True) == "finalize"
 
 
-# ---------------------------------------------------------------------------
 # route_after_enrich — full matrix of (post-upgrade) severity x max_ioc_score
-# ---------------------------------------------------------------------------
 
 
 def _expected_after_enrich(sev: Severity, score: int | None) -> str:
@@ -130,11 +126,6 @@ def test_route_after_enrich_critical_high_always_retrieve() -> None:
     for sev in (Severity.CRITICAL, Severity.HIGH):
         for score in SCORES:
             assert route_after_enrich(_state(sev, max_ioc_score=score)) == "retrieve"
-
-
-# ---------------------------------------------------------------------------
-# terminal routers
-# ---------------------------------------------------------------------------
 
 
 def test_route_after_retrieve_always_reason() -> None:

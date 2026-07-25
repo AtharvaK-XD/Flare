@@ -49,9 +49,6 @@ from app.store.repositories import AlertRepository, EvalRunRepository
 # synchronous TestClient tests at the bottom (which pytest-asyncio rejects).
 
 
-# --------------------------------------------------------------------------- helpers
-
-
 def _alert(signature: str = "ET MALWARE Cobalt Strike beacon C2") -> NormalizedAlert:
     return NormalizedAlert(
         id="fail-inject-1",
@@ -145,9 +142,6 @@ async def file_db(tmp_path: Path) -> AsyncIterator[Any]:
         yield factory
     finally:
         await engine.dispose()
-
-
-# --------------------------------------------------------------------------- LLM tiers
 
 
 async def test_invalid_groq_key_degrades_classification_but_keeps_the_alert(
@@ -294,9 +288,6 @@ async def test_gemini_safety_block_is_non_retryable_and_alert_finalizes() -> Non
     assert quality.calls <= 3, f"a non-retryable block was retried {quality.calls} times"
 
 
-# --------------------------------------------------------------------------- intel
-
-
 class _CleanAggregator:
     """Every indicator comes back clean. Not a failure — 'no data' is normal."""
 
@@ -421,9 +412,6 @@ async def test_abuseipdb_timeout_still_yields_a_verdict_from_virustotal_alone() 
     assert health["virustotal"].status == "ok"
 
 
-# --------------------------------------------------------------------------- RAG
-
-
 async def test_empty_chroma_collection_still_produces_ungrounded_remediation() -> None:
     """An empty index degrades grounding, not the pipeline."""
 
@@ -460,9 +448,6 @@ async def test_empty_chroma_collection_still_produces_ungrounded_remediation() -
     )
 
 
-# --------------------------------------------------------------------------- storage
-
-
 async def test_concurrent_write_burst_does_not_lose_alerts(file_db: Any) -> None:
     """SQLite under a concurrent write burst: contention is retried, nothing lost."""
     repo = AlertRepository()
@@ -495,9 +480,6 @@ async def test_concurrent_write_burst_does_not_lose_alerts(file_db: Any) -> None
         )
     assert total == count, f"lost {count - total} alert(s) to write contention"
     assert done == count
-
-
-# --------------------------------------------------------------------------- ingestion
 
 
 async def test_malformed_records_mid_dataset_are_skipped_counted_and_replay_continues(
@@ -555,9 +537,6 @@ async def test_malformed_records_mid_dataset_are_skipped_counted_and_replay_cont
     )
 
 
-# --------------------------------------------------------------------------- transport
-
-
 async def test_fifty_abrupt_sse_disconnects_leave_no_subscribers() -> None:
     """Every browser refresh unsubscribes, or memory climbs all demo."""
     bus = EventBus(maxsize=16)
@@ -584,9 +563,6 @@ async def test_fifty_abrupt_sse_disconnects_leave_no_subscribers() -> None:
 class _Event:
     event = "alert.new"
     data = None
-
-
-# --------------------------------------------------------------------------- run state
 
 
 async def test_crashed_run_is_reaped_and_the_next_post_run_succeeds(file_db: Any) -> None:
@@ -650,9 +626,6 @@ async def test_stale_sweep_is_idempotent_and_survives_a_broken_session(file_db: 
     # The loop logged and kept going rather than dying on the first failure.
     assert sweeper._task is not None and not sweeper._task.done()
     await sweeper.stop()
-
-
-# --------------------------------------------------------------------------- app-level
 
 
 def test_unknown_route_returns_the_frozen_error_envelope(api_client: Any) -> None:

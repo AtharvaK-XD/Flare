@@ -1,4 +1,4 @@
-"""Chroma vector store lifecycle only — no embedding/indexing (that's Phase 7).
+"""Chroma vector store lifecycle only — no embedding/indexing (that's app/rag/).
 
 Module-level lazy singleton client; blocking calls are wrapped in
 ``asyncio.to_thread`` so they are safe to await from async code.

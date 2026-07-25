@@ -1,6 +1,6 @@
 """Scratch demo — replay the bundled CICIDS subset at 5 eps, print alerts.
 
-Not part of the app; just proves the Phase 3 engine end-to-end.
+Not part of the app; just proves the replay engine end-to-end.
 """
 
 from __future__ import annotations

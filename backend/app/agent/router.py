@@ -14,7 +14,6 @@ from __future__ import annotations
 from app.agent.state import TriageState, config_flag
 from app.schemas import Severity
 
-# Severity buckets used by the routing rules.
 _ENRICH_SEVERITIES = (Severity.CRITICAL, Severity.HIGH, Severity.MEDIUM)
 _RETRIEVE_SEVERITIES = (Severity.CRITICAL, Severity.HIGH)
 _LOW_SEVERITIES = (Severity.LOW, Severity.INFO)

@@ -34,9 +34,6 @@ from app.schemas import (
 pytestmark = pytest.mark.asyncio
 
 
-# --------------------------------------------------------------------------- fakes
-
-
 class FakeProvider:
     def __init__(
         self,
@@ -98,9 +95,6 @@ class FakeRetriever:
         self, query: str, attack_type: Any = None, k: int = 4
     ) -> list[MitreTechnique]:
         return self._t
-
-
-# --------------------------------------------------------------------------- builders
 
 
 def _alert(iocs: list[str] | None = None) -> NormalizedAlert:
@@ -181,9 +175,6 @@ def _benign_config() -> dict[str, Any]:
 
 def _ran_nodes(state: dict[str, Any]) -> dict[str, str]:
     return {t.node: t.status for t in state["trace"]}
-
-
-# --------------------------------------------------------------------------- tests
 
 
 async def test_critical_alert_traverses_all_five_nodes() -> None:

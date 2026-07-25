@@ -40,9 +40,6 @@ EPS = 10
 ENRICH_SECONDS = 0.25  # simulated rate-capped enrichment (single worker => ~4/s)
 
 
-# --------------------------------------------------------------------------- stubs
-
-
 async def stub_classify(
     alert: NormalizedAlert, config: Any = None, stop_after: Any = None
 ) -> TriageState:
@@ -86,9 +83,6 @@ async def stub_resume(state: TriageState, config: Any = None) -> AsyncIterator[T
         "status": AlertStatus.REASONED,
         "total_duration_ms": 5,
     }
-
-
-# --------------------------------------------------------------------------- db
 
 
 def _alert(i: int) -> NormalizedAlert:
@@ -141,9 +135,6 @@ async def _terminal_count(factory: Any) -> int:
             )
         )
         return int(rows.scalar_one())
-
-
-# --------------------------------------------------------------------------- run
 
 
 async def main() -> None:
