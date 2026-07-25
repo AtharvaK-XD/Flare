@@ -6,20 +6,26 @@ import uuid
 from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
 
-from fastapi import APIRouter, FastAPI, Request
+from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from starlette.middleware.base import BaseHTTPMiddleware
 from starlette.responses import Response
 
 from app.api.errors import register_exception_handlers
+from app.api.router import api_router
 from app.config import get_settings
+from app.core.bus import get_event_bus
 from app.core.logging import (
     bind_request_context,
     clear_request_context,
     configure_logging,
     get_logger,
 )
+from app.ingestion.replay import ReplayEngine
+from app.schemas import NormalizedAlert
 from app.store.db import dispose_db, init_db
+from app.workers.manager import WorkerManager
+from app.workers.queue import get_queue_registry
 
 log = get_logger(__name__)
 
@@ -31,12 +37,29 @@ async def lifespan(_app: FastAPI) -> AsyncIterator[None]:
 
     await init_db()
 
+    # Workers + queues + bus. ReplayEngine feeds the triage queue; the graph and
+    # workers never learn an HTTP connection exists.
+    bus = get_event_bus()
+    triage_q = get_queue_registry().get("triage")
+    manager = WorkerManager()
+    manager.start()
+
+    async def _on_alert(alert: NormalizedAlert) -> None:
+        triage_q.put(alert)  # non-blocking; drops newest under backpressure
+
+    replay = ReplayEngine(_on_alert)
+
+    _app.state.event_bus = bus
+    _app.state.worker_manager = manager
+    _app.state.replay_engine = replay
 
     log.info("flare.startup.ready")
     try:
         yield
     finally:
         log.info("flare.shutdown.begin")
+        await replay.stop()
+        await manager.stop()
         await dispose_db()
         log.info("flare.shutdown.done")
 
@@ -61,14 +84,6 @@ def _build_cors_origins(settings) -> list[str]:  # noqa: ANN001
     if settings.is_dev:
         origins.append("*")
     return origins
-
-
-api_router = APIRouter(prefix="/api/v1")
-
-
-@api_router.get("/health")
-async def health() -> dict[str, str]:
-    return {"status": "ok"}
 
 
 def create_app() -> FastAPI:

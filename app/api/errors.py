@@ -45,6 +45,26 @@ class RateLimitedError(FlareError):
     http_status = 429
 
 
+class QueueFullError(FlareError):
+    """Backpressure: work was refused because a queue is saturated.
+
+    Reported as ``rate_limited`` (the contract's code for "upstream is saturated,
+    keep the UI running") but at 503 — the request was not throttled, the system
+    is momentarily unable to accept more work. Being honest here beats silently
+    dropping the alert.
+    """
+
+    code = "rate_limited"
+    http_status = 503
+
+
+class ConflictError(FlareError):
+    """An illegal state transition (e.g. resume while idle). Never a 500."""
+
+    code = "conflict"
+    http_status = 409
+
+
 class ProviderError(FlareError):
     code = "provider_error"
     http_status = 502

@@ -79,10 +79,24 @@ class Settings(BaseSettings):
     ground_truth_path: Path = Path("./data/labels")
 
     replay_events_per_second: int = 10
-    triage_worker_concurrency: int = 1
+    triage_worker_concurrency: int = 4
     enrich_worker_concurrency: int = 1
 
     enable_benchmark_mode: bool = False
+
+    # Agent / LangGraph orchestration (Phase 8)
+    ioc_escalation_score: int = 80
+    enrich_low_severity: bool = False
+    triage_timeout_seconds: float = 45.0
+
+    # Workers, queues & bus (Phase 9)
+    event_bus_maxsize: int = 100
+    triage_queue_maxsize: int = 1000
+    enrich_queue_maxsize: int = 500
+    shutdown_drain_seconds: float = 10.0
+    enrich_requeue_delay_seconds: float = 2.0
+    stats_publish_interval_seconds: float = 2.0
+    worker_restart_cap_per_min: int = 5
 
 
     @field_validator("api_port")

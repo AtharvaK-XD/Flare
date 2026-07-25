@@ -266,6 +266,19 @@ class AlertRepository:
         await session.flush()
         return row
 
+    async def mark_done(
+        self, session: AsyncSession, alert_id: str, total_duration_ms: int | None = None
+    ) -> models.Alert | None:
+        """Terminal transition: status=done, stamp end-to-end duration if known."""
+        row = await session.get(models.Alert, alert_id)
+        if row is None:
+            return None
+        row.status = AlertStatus.DONE.value
+        if total_duration_ms is not None:
+            row.total_duration_ms = total_duration_ms
+        await session.flush()
+        return row
+
     async def add_trace(
         self, session: AsyncSession, alert_id: str, trace: TraceNode
     ) -> models.Trace:
