@@ -74,10 +74,12 @@ class Settings(BaseSettings):
     cors_origins: list[str] = ["http://localhost:5173"]
 
     groq_api_key: str | None = None
-    # Phase 13: swapped off llama-3.1-8b-instant. Confirmed against Groq's live
+    # Back on llama-3.1-8b-instant: openai/gpt-oss-120b is a reasoning model and
+    # measured 7.5s p50 on the classify node — too slow for the live fast path,
+    # and the accuracy gain did not pay for it. Confirmed against Groq's live
     # /v1/models listing for this account — slugs on Groq change, so re-confirm
     # before editing this default rather than assuming.
-    groq_fast_model: str = "openai/gpt-oss-120b"
+    groq_fast_model: str = "llama-3.1-8b-instant"
     groq_quality_model: str = "llama-3.3-70b-versatile"
 
     google_api_key: str | None = None
@@ -117,7 +119,7 @@ class Settings(BaseSettings):
     # Wall-clock budget for a FULL run_triage (classify -> recommend).
     #
     # Measured on demo hardware with the configured models, warm:
-    #   classify (gpt-oss-120b)     1.6s
+    #   classify (llama-3.1-8b-instant) 1.6s
     #   enrich                      1.0s
     #   retrieve                    1.9s
     #   reason (gemini-flash-latest) 24.1s   <- reasoning model, thinks first

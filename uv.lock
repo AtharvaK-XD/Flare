@@ -937,6 +937,7 @@ dependencies = [
 dev = [
     { name = "ipython" },
     { name = "mypy" },
+    { name = "psutil" },
     { name = "pytest" },
     { name = "pytest-asyncio" },
     { name = "pytest-cov" },
@@ -960,6 +961,7 @@ requires-dist = [
     { name = "mypy", marker = "extra == 'dev'" },
     { name = "orjson" },
     { name = "pandas" },
+    { name = "psutil", marker = "extra == 'dev'" },
     { name = "pyarrow" },
     { name = "pydantic", specifier = ">=2" },
     { name = "pydantic-settings" },

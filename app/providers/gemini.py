@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import asyncio
 import time
+import warnings
 from collections.abc import Callable
 from typing import Any
 
@@ -27,6 +28,17 @@ log = get_logger(__name__)
 
 DEFAULT_TIMEOUT = 30.0
 ATTEMPTS = 3
+
+# google-generativeai announces its own end-of-support with a FutureWarning, and
+# it raises it at the CALLER's stack frame — i.e. attributed to this module, the
+# one that does the import. Nothing actionable happens here at call time (the
+# migration to google-genai is a separate job), so silence it rather than let it
+# print on every worker that touches the quality tier.
+warnings.filterwarnings(
+    "ignore",
+    category=FutureWarning,
+    module=r"app\.providers\.gemini",
+)
 
 _BLOCK_FINISH = {"SAFETY", "BLOCKLIST", "PROHIBITED_CONTENT", "RECITATION"}
 

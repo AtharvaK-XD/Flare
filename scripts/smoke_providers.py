@@ -48,7 +48,7 @@ RESULTS: list[tuple[str, str, str]] = []
 PROBE_MAX_TOKENS = 1200
 
 #: What the app falls back to when the env var is unset.
-DEFAULT_GROQ_FAST_MODEL = "openai/gpt-oss-120b"
+DEFAULT_GROQ_FAST_MODEL = "llama-3.1-8b-instant"
 DEFAULT_GEMINI_MODEL = "gemini-flash-latest"
 
 #: Known-callable on a bare free key. Used ONLY to tell "this key has no quota

@@ -18,14 +18,15 @@ from app.schemas import ProviderTier
 
 log = get_logger(__name__)
 
-#: gpt-oss-120b is a reasoning model — it thinks before emitting, so a
-#: first-token deadline sized for llama-3.1-8b-instant times it out under load.
+#: Sized for a reasoning model (openai/gpt-oss-120b thinks before emitting) and
+#: left there deliberately: llama-3.1-8b-instant answers well inside it, and the
+#: quality model is still reachable through the ``model=`` override.
 DEFAULT_TIMEOUT = 30.0
 ATTEMPTS = 3
 
 #: Fallback when GROQ_FAST_MODEL is unset. Confirmed against Groq's live
 #: /openai/v1/models listing — do not edit from memory, slugs change.
-DEFAULT_FAST_MODEL = "openai/gpt-oss-120b"
+DEFAULT_FAST_MODEL = "llama-3.1-8b-instant"
 
 
 class GroqProvider:
