@@ -5,7 +5,6 @@ import { RenderPass } from 'three/examples/jsm/postprocessing/RenderPass.js';
 import { UnrealBloomPass } from 'three/examples/jsm/postprocessing/UnrealBloomPass.js';
 import { OutputPass } from 'three/examples/jsm/postprocessing/OutputPass.js';
 import type { Alert, PipelineStage, Severity } from '@/types';
-import { STAGE_LABELS } from '@/types';
 import { Sparkles, Activity, ShieldAlert, Cpu, CheckCircle } from 'lucide-react';
 
 interface Pipeline3DHeroProps {
@@ -48,7 +47,7 @@ interface Particle3D {
   severity: Severity;
 }
 
-export function Pipeline3DHero({ alerts, connected, onOpenCommand }: Pipeline3DHeroProps) {
+export function Pipeline3DHero({ alerts, onOpenCommand }: Pipeline3DHeroProps) {
   const mountRef = useRef<HTMLDivElement | null>(null);
   const [nodeScreenPos, setNodeScreenPos] = useState<{ id: PipelineStage; x: number; y: number; count: number }[]>([]);
   const [activeStage, setActiveStage] = useState<PipelineStage>('reasoned');
@@ -465,9 +464,9 @@ export function Pipeline3DHero({ alerts, connected, onOpenCommand }: Pipeline3DH
           container.removeChild(renderer.domElement);
         }
       };
-    } catch (err: any) {
+    } catch (err) {
       console.error('WebGL initialization error:', err);
-      setWebglError(err?.message || 'WebGL context failure');
+      setWebglError(err instanceof Error ? err.message : 'WebGL context failure');
     }
   }, [stageCounts]);
 

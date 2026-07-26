@@ -170,7 +170,9 @@ export const api = {
       es.addEventListener('alert.new', (e: MessageEvent) => {
         try {
           handlers.onAlertNew?.(JSON.parse(e.data));
-        } catch {}
+        } catch {
+          // malformed frame — drop it, keep the stream alive
+        }
       });
     }
 
@@ -178,7 +180,9 @@ export const api = {
       es.addEventListener('alert.updated', (e: MessageEvent) => {
         try {
           handlers.onAlertUpdated?.(JSON.parse(e.data));
-        } catch {}
+        } catch {
+          // malformed frame — drop it, keep the stream alive
+        }
       });
     }
 
@@ -186,7 +190,9 @@ export const api = {
       es.addEventListener('stats.updated', (e: MessageEvent) => {
         try {
           handlers.onStatsUpdated?.(JSON.parse(e.data));
-        } catch {}
+        } catch {
+          // malformed frame — drop it, keep the stream alive
+        }
       });
     }
 
@@ -194,7 +200,9 @@ export const api = {
       es.addEventListener('replay.status', (e: MessageEvent) => {
         try {
           handlers.onReplayStatus?.(JSON.parse(e.data));
-        } catch {}
+        } catch {
+          // malformed frame — drop it, keep the stream alive
+        }
       });
     }
 
@@ -202,7 +210,9 @@ export const api = {
       es.addEventListener('system.notice', (e: MessageEvent) => {
         try {
           handlers.onSystemNotice?.(JSON.parse(e.data));
-        } catch {}
+        } catch {
+          // malformed frame — drop it, keep the stream alive
+        }
       });
     }
 

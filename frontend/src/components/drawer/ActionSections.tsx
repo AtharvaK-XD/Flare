@@ -1,9 +1,5 @@
-import type { Remediation, RemediationStep } from '@/types';
+import type { RemediationStep } from '@/types';
 import { AlertCircle, Clock, ShieldCheck, CheckCircle2 } from 'lucide-react';
-
-interface RemediationPanelProps {
-  remediation: Remediation | null;
-}
 
 export function RemediationList({ steps }: { steps: RemediationStep[] }) {
   if (!steps || steps.length === 0) {

@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Activity, ShieldCheck, Cpu, Database, RefreshCw, X, Server, Layers } from 'lucide-react';
+import { Activity, RefreshCw, X, Server, Layers } from 'lucide-react';
 import type { DeepHealth } from '@/types';
 import { api } from '@/lib/api';
 

@@ -3,7 +3,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import type { AlertSummary } from '@/types';
 import type { ReplayMode } from '@/hooks/useAlertStream';
 import type { FeedFilters } from '@/components/feed/AlertFeed';
-import { Search, Sparkles, Command, ShieldAlert, Play, Pause, Square, CornerDownLeft, X, PlusCircle } from 'lucide-react';
+import { Sparkles, Command, ShieldAlert, Play, Pause, Square, CornerDownLeft, X, PlusCircle } from 'lucide-react';
 
 interface CommandBarProps {
   isOpen: boolean;

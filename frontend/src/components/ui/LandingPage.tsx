@@ -1,5 +1,5 @@
 import React, { useRef } from 'react';
-import { motion, useScroll, useSpring, useMotionValue, useTransform } from 'framer-motion';
+import { motion, useScroll, useSpring, useTransform } from 'framer-motion';
 import { Realistic3DHero } from '@/components/pipeline/Realistic3DHero';
 import type { Alert } from '@/types';
 import {
@@ -15,10 +15,6 @@ import {
   Radio,
   CheckCircle2,
   ArrowRight,
-  Shield,
-  Layers,
-  Activity,
-  Lock,
 } from 'lucide-react';
 
 interface LandingPageProps {

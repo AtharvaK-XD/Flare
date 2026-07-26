@@ -1,5 +1,5 @@
 import type { IocVerdict, MitreTechnique } from '@/types';
-import { ShieldAlert, ShieldCheck, ExternalLink, Copy, Check, Info } from 'lucide-react';
+import { ShieldAlert, ShieldCheck, ExternalLink, Copy, Check } from 'lucide-react';
 import { useState } from 'react';
 
 interface IocVerdictsProps {

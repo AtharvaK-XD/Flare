@@ -7,7 +7,7 @@ import {
   STATUS_LABELS,
 } from '@/types';
 import { Card3D } from '@/components/ui/Card3D';
-import { ShieldAlert, Zap, Layers, CheckCircle2, AlertTriangle } from 'lucide-react';
+import { Zap } from 'lucide-react';
 import { InjectAlertModal } from '@/components/feed/InjectAlertModal';
 
 interface AlertFeedProps {

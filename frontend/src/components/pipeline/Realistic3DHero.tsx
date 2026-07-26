@@ -3,7 +3,7 @@ import { Canvas, useFrame } from '@react-three/fiber';
 import { Environment, Sparkles, Stars } from '@react-three/drei';
 import * as THREE from 'three';
 import { motion } from 'framer-motion';
-import { Sparkles as SparklesIcon, ShieldAlert } from 'lucide-react';
+import { ShieldAlert } from 'lucide-react';
 import type { Alert } from '@/types';
 
 interface Realistic3DHeroProps {
@@ -17,7 +17,7 @@ class R3FErrorBoundary extends React.Component<
   { children: React.ReactNode; fallback: React.ReactNode },
   { hasError: boolean }
 > {
-  constructor(props: any) {
+  constructor(props: { children: React.ReactNode; fallback: React.ReactNode }) {
     super(props);
     this.state = { hasError: false };
   }
@@ -26,7 +26,7 @@ class R3FErrorBoundary extends React.Component<
     return { hasError: true };
   }
 
-  componentDidCatch(error: any) {
+  componentDidCatch(error: unknown) {
     console.warn('R3F 3D Error caught safely:', error);
   }
 
@@ -281,6 +281,9 @@ function PhotorealisticGlobe() {
   );
 }
 
+// Props are part of the component's public interface but this purely-decorative
+// hero renders the same scene regardless of them.
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
 export function Realistic3DHero({ alerts, connected, onOpenCommand }: Realistic3DHeroProps) {
   const [isReady, setIsReady] = useState(false);
 

@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import type { AlertDetail } from '@/types';
 import { motion, AnimatePresence } from 'framer-motion';
 import { SEVERITY_HEX_CLASS, SEVERITY_TEXT, STATUS_LABELS } from '@/types';
-import { X, ChevronRight, ChevronDown, Hash, ArrowRight, Zap, ShieldAlert, Cpu } from 'lucide-react';
+import { X, ChevronRight, ChevronDown, Hash, Zap } from 'lucide-react';
 import { IocVerdicts, MitreChips } from '@/components/drawer/IntelSections';
 import { RemediationList, ModelDebate } from '@/components/drawer/ActionSections';
 import { PipelineTrace } from '@/components/drawer/PipelineTrace';
@@ -27,7 +27,6 @@ export function AlertDrawer({ alert, onClose }: AlertDrawerProps) {
     return () => window.removeEventListener('keydown', onKey);
   }, [alert, onClose]);
 
-  const severityKey = alert?.severity || 'info';
   const isEscalated = (alert?.max_ioc_score ?? 0) >= 80 && alert?.severity === 'high';
 
   return (

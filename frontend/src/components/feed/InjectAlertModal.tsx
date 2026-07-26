@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { X, Send, Terminal, ShieldAlert, Sparkles, CheckCircle2 } from 'lucide-react';
+import { X, Send, ShieldAlert, CheckCircle2 } from 'lucide-react';
 import { api, type IngestAlertParams } from '@/lib/api';
 
 interface InjectAlertModalProps {
@@ -44,6 +44,7 @@ export function InjectAlertModal({ isOpen, onClose, onAlertInjected, onInjectCus
     e.preventDefault();
     setIsSubmitting(true);
     setSuccessMessage(null);
+    setErrorMessage(null);
 
     let alertId = `ingest-${Math.random().toString(36).substring(2, 9)}`;
 
@@ -85,7 +86,7 @@ export function InjectAlertModal({ isOpen, onClose, onAlertInjected, onInjectCus
         setSuccessMessage(null);
         onClose();
       }, 1500);
-    } catch (err: any) {
+    } catch {
       setIsSubmitting(false);
       // Even on invalid JSON parse, fallback gracefully
       if (onInjectCustomAlert) {
@@ -102,6 +103,14 @@ export function InjectAlertModal({ isOpen, onClose, onAlertInjected, onInjectCus
           setSuccessMessage(null);
           onClose();
         }, 1500);
+      } else {
+        // No demo fallback wired up — surface the failure instead of silently
+        // resetting the button (the raw-JSON textarea is the usual cause).
+        setErrorMessage(
+          useRawJson
+            ? 'Could not submit: the raw JSON body is not valid JSON.'
+            : 'Could not submit the alert. Check the backend connection and try again.',
+        );
       }
     }
   };

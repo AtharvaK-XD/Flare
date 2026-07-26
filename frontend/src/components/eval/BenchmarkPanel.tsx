@@ -1,9 +1,8 @@
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import type { BenchmarkReport, BenchmarkResult } from '@/types';
 import { fmtPct, fmtMs } from '@/lib/format';
 import { Card3D } from '@/components/ui/Card3D';
-import { generateBenchmarkReport } from '@/lib/generator';
-import { AlertTriangle, Play, Zap, Shield, Cpu } from 'lucide-react';
+import { AlertTriangle, Play } from 'lucide-react';
 import { api } from '@/lib/api';
 
 interface BenchmarkPanelProps {
@@ -11,38 +10,76 @@ interface BenchmarkPanelProps {
   onTriggerRun?: () => void;
 }
 
+const POLL_INTERVAL_MS = 2000;
+//: Every sampled alert is run through BOTH tiers sequentially, so 25 samples is
+//: 50 live LLM calls. The backend reaps its own stale runs; this cap only
+//: catches the backend going silent on us entirely.
+const POLL_TIMEOUT_MS = 10 * 60 * 1000;
+
+const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
+
 export function BenchmarkPanel({ report: propsReport, onTriggerRun }: BenchmarkPanelProps) {
   const [isRunning, setIsRunning] = useState(false);
-  const [sampleSize, setSampleSize] = useState(25);
+  const [error, setError] = useState<string | null>(null);
+  const sampleSize = 25;
   const [localReport, setLocalReport] = useState<BenchmarkReport | null>(null);
 
-  const report = localReport || propsReport || generateBenchmarkReport(25);
+  // Stops the poll loop touching state after the panel goes away.
+  const cancelledRef = useRef(false);
+  useEffect(() => {
+    cancelledRef.current = false;
+    return () => {
+      cancelledRef.current = true;
+    };
+  }, []);
 
-  const handleRun = async () => {
-    setIsRunning(true);
-    if (onTriggerRun) {
-      onTriggerRun();
-    }
-    
-    try {
-      const res = await api.runBenchmark(sampleSize);
-      if (res?.run_id) {
-        const polled = await api.getBenchmarkRun(res.run_id);
-        if (polled) setLocalReport(polled);
-        else setLocalReport(generateBenchmarkReport(sampleSize));
-      } else {
-        setLocalReport(generateBenchmarkReport(sampleSize));
+  // No fabricated fallback: null means "no run yet" and the panel says so.
+  const report = localReport ?? propsReport ?? null;
+
+  /** Poll GET /benchmark/runs/{id} every 2s until the run leaves `running`. */
+  const pollUntilDone = async (runId: string) => {
+    const deadline = Date.now() + POLL_TIMEOUT_MS;
+    while (!cancelledRef.current) {
+      const polled = await api.getBenchmarkRun(runId);
+      if (cancelledRef.current) return;
+      setLocalReport(polled);
+      if (polled.status !== 'running') {
+        if (polled.status === 'failed') {
+          setError(polled.error || 'Benchmark run failed.');
+        }
+        return;
       }
-    } catch {
-      // Demo / offline mode fallback
-      setLocalReport(generateBenchmarkReport(sampleSize));
-    } finally {
-      setTimeout(() => setIsRunning(false), 2200);
+      if (Date.now() > deadline) {
+        setError('Stopped polling: the run did not finish within 10 minutes.');
+        return;
+      }
+      await sleep(POLL_INTERVAL_MS);
     }
   };
 
-  const fastTier = report.results.find((r) => r.tier === 'fast') || report.results[0];
-  const qualityTier = report.results.find((r) => r.tier === 'quality') || report.results[1] || report.results[0];
+  const handleRun = async () => {
+    setIsRunning(true);
+    setError(null);
+    if (onTriggerRun) {
+      onTriggerRun();
+    }
+
+    try {
+      const res = await api.runBenchmark(sampleSize);
+      if (!res?.run_id) throw new Error('backend did not return a run_id');
+      await pollUntilDone(res.run_id);
+    } catch (err) {
+      if (!cancelledRef.current) {
+        setError(err instanceof Error ? err.message : 'Benchmark failed to start.');
+      }
+    } finally {
+      if (!cancelledRef.current) setIsRunning(false);
+    }
+  };
+
+  const results = report?.results ?? [];
+  const fastTier = results.find((r) => r.tier === 'fast') || results[0];
+  const qualityTier = results.find((r) => r.tier === 'quality') || results[1] || results[0];
 
   return (
     <Card3D intensity={5} glare={true} className="w-full">
@@ -55,26 +92,44 @@ export function BenchmarkPanel({ report: propsReport, onTriggerRun }: BenchmarkP
               Fast Tier vs Quality Tier Provider Benchmark
             </h2>
             <span className="font-mono text-[10px] text-dim border border-edge/80 px-2 py-0.5 rounded-md bg-void/50">
-              {report.sample_size} sample alerts
+              {report ? `${report.sample_size} sample alerts` : 'no run yet'}
             </span>
           </div>
 
           <button
             onClick={handleRun}
-            disabled={isRunning || report.status === 'running'}
+            disabled={isRunning}
             className="font-mono text-[10px] px-3 py-1 bg-sev-low text-ink hover:bg-sev-low/80 disabled:opacity-50 rounded-md transition-all flex items-center gap-1 font-bold cursor-pointer"
           >
             <Play size={10} className={isRunning ? 'animate-spin' : ''} />
-            {isRunning || report.status === 'running' ? 'Benchmarking...' : 'Run Benchmark'}
+            {isRunning ? 'Benchmarking...' : 'Run Benchmark'}
           </button>
         </header>
 
+        {error && (
+          <div className="px-4 py-2 border-b border-sev-critical/40 bg-sev-critical/10 font-mono text-[11px] text-sev-critical">
+            {error}
+          </div>
+        )}
+
+        {!report ? (
+          <div className="px-4 py-10 text-center">
+            <p className="font-mono text-xs uppercase tracking-[0.16em] text-dim font-bold">No run yet</p>
+            <p className="text-[11px] text-dim mt-2 max-w-md mx-auto leading-snug">
+              Nothing on this panel is simulated. Press Run Benchmark to put {sampleSize} alerts
+              through both provider tiers — {sampleSize * 2} live LLM calls, filled in as they land.
+            </p>
+          </div>
+        ) : (
+          <>
         {/* Agreement Rate Banner */}
         <div className="px-4 py-4 border-b border-edge/80 bg-void/40 flex items-center gap-4 flex-wrap">
           <div>
             <div className="font-mono text-[9px] uppercase tracking-[0.16em] text-dim font-medium">Consensus Agreement Rate</div>
             <div className="font-mono text-3xl font-extrabold text-ok tabular-nums leading-none mt-1 shadow-sm drop-shadow-[0_0_12px_rgba(22,163,74,0.4)]">
-              {report.agreement_rate !== null ? fmtPct(report.agreement_rate) : '—'}
+              {report.agreement_rate !== null && report.agreement_rate !== undefined
+                ? fmtPct(report.agreement_rate)
+                : '—'}
             </div>
           </div>
           <p className="text-[11px] text-dim leading-snug flex-1 border-l border-edge/80 pl-4 min-w-[240px]">
@@ -83,10 +138,18 @@ export function BenchmarkPanel({ report: propsReport, onTriggerRun }: BenchmarkP
         </div>
 
         {/* Side-by-Side Tier Cards */}
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-px bg-edge/80">
-          {fastTier && <TierCard result={fastTier} isQuality={false} />}
-          {qualityTier && <TierCard result={qualityTier} isQuality={true} />}
-        </div>
+        {results.length === 0 ? (
+          <div className="px-4 py-6 text-center font-mono text-[11px] text-dim">
+            {report.status === 'running'
+              ? 'Benchmarking both tiers…'
+              : 'No tier results recorded for this run.'}
+          </div>
+        ) : (
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-px bg-edge/80">
+            {fastTier && <TierCard result={fastTier} isQuality={false} />}
+            {qualityTier && <TierCard result={qualityTier} isQuality={true} />}
+          </div>
+        )}
 
         {/* Disagreement Examples Table */}
         {report.disagreement_examples && report.disagreement_examples.length > 0 && (
@@ -121,6 +184,8 @@ export function BenchmarkPanel({ report: propsReport, onTriggerRun }: BenchmarkP
               </table>
             </div>
           </div>
+        )}
+          </>
         )}
       </div>
     </Card3D>

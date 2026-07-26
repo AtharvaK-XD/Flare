@@ -1,4 +1,4 @@
-import { Play, Pause, Square, FastForward, Activity } from 'lucide-react';
+import { Play, Pause, Square, FastForward } from 'lucide-react';
 import type { ReplayStatus } from '@/types';
 import type { ReplayMode } from '@/hooks/useAlertStream';
 import type { ReactNode } from 'react';
@@ -33,7 +33,7 @@ export function ReplayBar({
   };
 
   const handleEpsChange = (eps: number) => {
-    if (onStartReplay) onStartReplay(currentDataset as any, eps);
+    if (onStartReplay) onStartReplay(currentDataset as 'cicids2017' | 'suricata', eps);
   };
 
   return (
@@ -72,7 +72,7 @@ export function ReplayBar({
           <span className="text-dim uppercase text-[9px]">Dataset:</span>
           <select
             value={currentDataset}
-            onChange={(e) => handleDatasetChange(e.target.value as any)}
+            onChange={(e) => handleDatasetChange(e.target.value as 'cicids2017' | 'suricata')}
             className="bg-transparent text-ink font-bold focus:outline-none cursor-pointer"
           >
             <option value="cicids2017" className="bg-slate-900 text-white">CICIDS2017</option>

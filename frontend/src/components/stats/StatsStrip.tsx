@@ -78,7 +78,9 @@ export function StatsStrip({ stats, connected, onOpenCommand }: StatsStripProps)
 
           {/* Severity Counters */}
           {severities.map((sev) => {
-            const val = stats.by_severity ? (stats.by_severity[sev] ?? 0) : (stats as any)[sev] ?? 0;
+            const val = stats.by_severity
+              ? (stats.by_severity[sev] ?? 0)
+              : ((stats as unknown as Record<string, number>)[sev] ?? 0);
             return (
               <StatCell
                 key={sev}
